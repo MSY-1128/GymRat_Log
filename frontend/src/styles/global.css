@@ -1,0 +1,82 @@
+:root {
+  --bg: #f4f6ef;
+  --surface: #ffffff;
+  --surface-muted: #f8faf5;
+  --border: #e0e7db;
+  --border-strong: #cad7c9;
+  --text: #214737;
+  --text-muted: #5b6e63;
+  --primary: #235b45;
+  --primary-hover: #1b4836;
+  --primary-soft: #e3eee6;
+  --accent: #93ad65;
+  --accent-soft: #eef3e3;
+  --danger: #b4372f;
+  --danger-soft: #fbeceb;
+  --warning-soft: #fdf6e3;
+  --radius: 18px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgba(33, 71, 55, 0.04), 0 4px 16px rgba(33, 71, 55, 0.04);
+  --focus: 0 0 0 3px rgba(147, 173, 101, 0.55);
+  color-scheme: light;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.3;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--primary);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

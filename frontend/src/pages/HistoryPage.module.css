@@ -1,0 +1,73 @@
+.statLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.stat {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 8px 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.chart {
+  width: 100%;
+  height: 300px;
+  margin-bottom: 8px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  min-width: 520px;
+}
+
+.table th,
+.table td {
+  padding: 10px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+.table thead th {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.table th:first-child {
+  text-align: left;
+}
+
+.table tr[aria-current='date'] {
+  background: var(--primary-soft);
+}
+
+.over {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.dayLink {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

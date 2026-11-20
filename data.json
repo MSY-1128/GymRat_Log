@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "sampleOnly": true,
+  "notice": "검증된 영양정보가 아닌 기능 확인용 예시입니다.",
+  "profileExample": {
+    "age": 30,
+    "sexForFormula": "MALE",
+    "heightCm": 175,
+    "weightKg": 70,
+    "activityFactor": 1.2,
+    "dailyTargetKcal": 2000
+  },
+  "foods": [
+    {
+      "id": 1,
+      "name": "현미밥",
+      "basisGrams": 100,
+      "kcal": 150,
+      "carbsG": 32,
+      "proteinG": 3,
+      "fatG": 1,
+      "source": "DEMO"
+    },
+    {
+      "id": 2,
+      "name": "닭가슴살",
+      "basisGrams": 100,
+      "kcal": 165,
+      "carbsG": 0,
+      "proteinG": 31,
+      "fatG": 3.6,
+      "source": "DEMO"
+    },
+    {
+      "id": 3,
+      "name": "바나나",
+      "basisGrams": 100,
+      "kcal": 89,
+      "carbsG": 23,
+      "proteinG": 1.1,
+      "fatG": 0.3,
+      "source": "DEMO"
+    }
+  ],
+  "exercises": [
+    {
+      "id": 1,
+      "name": "걷기",
+      "met": 3.5,
+      "source": "DEMO"
+    },
+    {
+      "id": 2,
+      "name": "달리기",
+      "met": 8,
+      "source": "DEMO"
+    },
+    {
+      "id": 3,
+      "name": "자전거",
+      "met": 6,
+      "source": "DEMO"
+    }
+  ],
+  "mealEntries": [],
+  "exerciseEntries": []
+}

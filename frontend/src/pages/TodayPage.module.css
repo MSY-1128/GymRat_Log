@@ -1,0 +1,88 @@
+.hero {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.hero .caption {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.cardLabel {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.number {
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 10px 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.over {
+  color: var(--danger);
+}
+
+.caption {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.macros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.macros div {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.macros dt {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.macros dd {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 520px) {
+  .macros {
+    grid-template-columns: 1fr;
+  }
+}
+
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+
+.meterOver {
+  background: var(--danger);
+}

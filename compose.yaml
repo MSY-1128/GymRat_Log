@@ -1,0 +1,23 @@
+# 로컬 개발용 PostgreSQL. 실행: docker compose up -d
+# .env는 (1) 아래 ${...} 치환과 (2) env_file 로 컨테이너에 명시적으로 주입된다.
+name: fitlog
+
+services:
+  db:
+    image: postgres:17-alpine
+    env_file:
+      - .env
+    ports:
+      # 루프백에만 공개. 기본 5433 (다른 로컬 PostgreSQL과 충돌 방지)
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - fitlog-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  fitlog-pgdata:

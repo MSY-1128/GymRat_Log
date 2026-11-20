@@ -1,0 +1,39 @@
+.custom {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.custom summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+  min-height: 32px;
+}
+
+.customBody {
+  margin-top: 12px;
+}
+
+.groupTitle {
+  font-size: 14px;
+  margin: 0 0 8px;
+  color: var(--text-muted);
+}
+
+.total {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.macroLine {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.groups {
+  display: grid;
+  gap: 14px;
+}
