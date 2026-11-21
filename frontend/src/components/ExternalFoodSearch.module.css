@@ -5,9 +5,79 @@
 
 .searchRow {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) auto;
   align-items: end;
   gap: 8px;
+}
+
+/* 찾는 방법: 이름·브랜드 | 바코드 (세그먼트) */
+.modes {
+  display: inline-flex;
+  justify-self: start;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.mode {
+  position: relative;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.mode input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.mode:has(input:checked) {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.mode:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.product {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.matchNote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--warning-ink);
+}
+
+.dine {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+
+@media (max-width: 520px) {
+  .searchRow {
+    grid-template-columns: 1fr;
+  }
 }
 
 .results {

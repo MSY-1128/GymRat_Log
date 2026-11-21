@@ -87,6 +87,21 @@ class MfdsClientTest {
     }
 
     @Test
+    void sendsOnlyGivenFilters() {
+        MfdsClient c = client(KEY);
+        server.expect(requestTo(allOf(containsString("ITEM_REPORT_NO=2007014900270"),
+                        not(containsString("FOOD_NM_KR")), not(containsString("MAKER_NM")))))
+                .andRespond(withSuccess("{\"header\":{\"resultCode\":\"03\"}}", MediaType.APPLICATION_JSON));
+        assertThat(c.search(MfdsQuery.byReportNo("2007014900270"), 1, 10).items()).isEmpty();
+
+        MfdsClient c2 = client(KEY);
+        server.expect(requestTo(allOf(containsString("MAKER_NM=" + enc("맥도날드")),
+                        containsString("DB_CLASS_NM=" + enc("상용제품")), not(containsString("FOOD_NM_KR")))))
+                .andRespond(withSuccess("{\"header\":{\"resultCode\":\"03\"}}", MediaType.APPLICATION_JSON));
+        assertThat(c2.search(MfdsQuery.byName("  ", "상용제품", " 맥도날드 "), 1, 10).items()).isEmpty();
+    }
+
+    @Test
     void emptyBodyAndNoDataCodeAreEmptyResults() {
         MfdsClient c = client(KEY);
         server.expect(requestTo(containsString("FOOD_NM_KR")))

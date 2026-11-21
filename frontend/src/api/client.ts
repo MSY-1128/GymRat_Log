@@ -4,6 +4,7 @@ import type {
   User,
   DailySummary,
   Exercise,
+  BarcodeLookup,
   ExternalFoodPage,
   Food,
   FoodInput,
@@ -131,8 +132,9 @@ export const api = {
   searchFoods: (query: string, page: number, size = 10) =>
     request<Page<Food>>('/foods' + q({ q: query, page, size })),
   createFood: (input: FoodInput) => request<Food>('/foods', json('POST', input)),
-  searchExternalFoods: (query: string, page: number, kind: MfdsKind) =>
-    request<ExternalFoodPage>('/foods/external' + q({ q: query, page, kind })),
+  searchExternalFoods: (query: string, page: number, kind: MfdsKind, maker = '') =>
+    request<ExternalFoodPage>('/foods/external' + q({ q: query, page, kind, ...(maker ? { maker } : {}) })),
+  lookupBarcode: (code: string) => request<BarcodeLookup>('/foods/barcode/' + encodeURIComponent(code)),
   importFood: (externalCode: string) => request<Food>('/foods/import', json('POST', { externalCode })),
 
   getExercises: () => request<Exercise[]>('/exercises'),

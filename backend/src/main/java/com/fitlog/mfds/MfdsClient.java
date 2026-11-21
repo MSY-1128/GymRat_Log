@@ -66,6 +66,11 @@ public class MfdsClient {
      * @param pageNo      1부터
      */
     public MfdsSearchResult search(String foodName, String dbClassName, int pageNo, int numOfRows) {
+        return search(new MfdsQuery(foodName, dbClassName, null, null), pageNo, numOfRows);
+    }
+
+    /** 검색 조건(식품명·구분·업체명·품목보고번호)으로 조회한다. null 조건은 보내지 않는다. */
+    public MfdsSearchResult search(MfdsQuery query, int pageNo, int numOfRows) {
         if (!props.configured()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "MFDS_NOT_CONFIGURED",
                     "식약처 DB 연동 키가 설정되지 않았어요. .env의 MFDS_SERVICE_KEY를 확인해 주세요.");
@@ -74,8 +79,16 @@ public class MfdsClient {
         vars.put("serviceKey", props.serviceKey().strip());
         vars.put("pageNo", pageNo);
         vars.put("numOfRows", numOfRows);
-        vars.put("foodName", foodName);
-        vars.put("dbClass", dbClassName == null ? "" : dbClassName);
+        Map<String, String> filters = new LinkedHashMap<>();
+        filters.put("FOOD_NM_KR", query.foodName());
+        filters.put("DB_CLASS_NM", query.dbClassName());
+        filters.put("MAKER_NM", query.makerName());
+        filters.put("ITEM_REPORT_NO", query.itemReportNo());
+        filters.forEach((k, v) -> {
+            if (v != null) {
+                vars.put(k, v);
+            }
+        });
 
         Response res;
         try {
@@ -86,11 +99,12 @@ public class MfdsClient {
                                 .queryParam("serviceKey", "{serviceKey}")
                                 .queryParam("type", "json")
                                 .queryParam("pageNo", "{pageNo}")
-                                .queryParam("numOfRows", "{numOfRows}")
-                                .queryParam("FOOD_NM_KR", "{foodName}");
-                        if (dbClassName != null) {
-                            b.queryParam("DB_CLASS_NM", "{dbClass}");
-                        }
+                                .queryParam("numOfRows", "{numOfRows}");
+                        filters.forEach((k, v) -> {
+                            if (v != null) {
+                                b.queryParam(k, "{" + k + "}");
+                            }
+                        });
                         return b.build(vars);
                     })
                     .accept(MediaType.APPLICATION_JSON)

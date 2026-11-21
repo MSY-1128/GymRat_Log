@@ -6,7 +6,9 @@ export const keys = {
   me: ['me'] as const,
   profile: ['profile'] as const,
   foods: (q: string, page: number) => ['foods', q, page] as const,
-  externalFoods: (q: string, page: number, kind: MfdsKind) => ['external-foods', q, kind, page] as const,
+  externalFoods: (q: string, page: number, kind: MfdsKind, maker: string) =>
+    ['external-foods', q, kind, maker, page] as const,
+  barcode: (code: string) => ['barcode', code] as const,
   exercises: ['exercises'] as const,
   meals: (date: string) => ['meals', date] as const,
   workouts: (date: string) => ['workouts', date] as const,
@@ -61,15 +63,25 @@ export const useFoods = (q: string, page: number) =>
     placeholderData: keepPreviousData,
   });
 
+/** 바코드 → 영양성분 후보. 버튼을 누를 때만 조회하고 자동 재시도하지 않는다(외부 API 한도 보호). */
+export const useBarcodeLookup = (code: string) =>
+  useQuery({
+    queryKey: keys.barcode(code),
+    queryFn: () => api.lookupBarcode(code),
+    enabled: code !== '',
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+
 /**
  * 식약처 DB 검색. 외부 API 트래픽(개발계정 일일 한도)을 아끼기 위해 검색 버튼으로만 조회하고,
  * 결과는 10분 캐시하며 실패해도 자동 재시도하지 않는다.
  */
-export const useExternalFoods = (q: string, page: number, kind: MfdsKind) =>
+export const useExternalFoods = (q: string, page: number, kind: MfdsKind, maker = '') =>
   useQuery({
-    queryKey: keys.externalFoods(q, page, kind),
-    queryFn: () => api.searchExternalFoods(q, page, kind),
-    enabled: q !== '',
+    queryKey: keys.externalFoods(q, page, kind, maker),
+    queryFn: () => api.searchExternalFoods(q, page, kind, maker),
+    enabled: q !== '' || maker !== '',
     staleTime: 10 * 60_000,
     retry: false,
     placeholderData: keepPreviousData,
@@ -117,7 +129,7 @@ export function useImportFood() {
   return useMutation({
     mutationFn: (externalCode: string) => api.importFood(externalCode),
     // 검색 결과의 '이미 가져옴' 표시와 내 음식 목록을 갱신한다
-    onSuccess: () => invalidate('foods', 'external-foods'),
+    onSuccess: () => invalidate('foods', 'external-foods', 'barcode'),
   });
 }
 

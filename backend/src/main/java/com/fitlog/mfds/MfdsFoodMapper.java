@@ -105,6 +105,7 @@ public final class MfdsFoodMapper {
                 displayName(foodName, maker),
                 foodName,
                 maker,
+                text(item.get("DB_GRP_NM")),
                 text(item.get("DB_CLASS_NM")),
                 text(item.get("FOOD_CAT1_NM")),
                 kcal100,
@@ -114,7 +115,8 @@ public final class MfdsFoodMapper {
                 servingGrams(item),
                 basis.label(),
                 basis.volume(),
-                List.copyOf(missing)));
+                List.copyOf(missing),
+                text(item.get("ITEM_REPORT_NO"))));
     }
 
     /**

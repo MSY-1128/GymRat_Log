@@ -12,12 +12,15 @@ import java.util.List;
  * @param volumeBased      원본이 mL 기준이라 1mL ≈ 1g으로 근사했는지
  * @param servingGrams     1회 섭취참고량 또는 식품 중량(g, mL은 근사). 없거나 범위 밖이면 null
  * @param missingNutrients 원본에 값이 없어 0으로 둔 영양소(carbsG, proteinG, fatG)
+ * @param dbGroupName      원본 식품군(음식/가공식품/농축산물 등). 음식 + 상용제품이면 외식 프랜차이즈 메뉴
+ * @param itemReportNo     품목제조보고번호(가공식품만 있음)
  */
 public record MfdsFoodCandidate(
         String externalCode,
         String name,
         String foodName,
         String makerName,
+        String dbGroupName,
         String dbClassName,
         String category,
         BigDecimal kcal,
@@ -27,6 +30,7 @@ public record MfdsFoodCandidate(
         BigDecimal servingGrams,
         String basisLabel,
         boolean volumeBased,
-        List<String> missingNutrients
+        List<String> missingNutrients,
+        String itemReportNo
 ) {
 }

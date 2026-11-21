@@ -66,6 +66,7 @@ Copy-Item .env.example .env   # bash: cp .env.example .env
 | `SPRING_PROFILES_ACTIVE` | `demo`면 빈 DB에 data.json 샘플 1회 seed | demo |
 | `SERVER_PORT` | 백엔드 포트 | 8080 |
 | `MFDS_SERVICE_KEY` | data.go.kr 식약처 식품영양성분DB **Decoding** 키(선택). 비우면 식약처 검색만 비활성 | — |
+| `FOODSAFETY_API_KEY` | 식품안전나라 오픈API 인증키(선택, 바코드 조회). 비우면 바코드 조회만 비활성 | — |
 
 **.env는 자동으로 로딩되지 않습니다.** DB는 Compose의 `env_file`로, 백엔드는 `scripts/run-backend.*`가 `.env`를 읽어 명시적으로 주입합니다.
 (직접 실행하려면 위 변수를 셸 환경변수로 설정한 뒤 `./mvnw spring-boot:run`)
@@ -159,8 +160,20 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/frontend:/w" -v fitlog-node-mod
 
 | API | 설명 |
 |---|---|
-| `GET /api/v1/foods/external?q=&page=0&kind=GENERIC\|BRAND\|ALL` | 식약처 DB 검색(20건/페이지). `GENERIC`=품목대표(일반 식품·음식, 기본), `BRAND`=상용제품 |
-| `POST /api/v1/foods/import` `{ "externalCode": "D101-..." }` | 최근 검색 결과에서 고른 식품을 내 음식으로 저장(이미 있으면 기존 음식 반환) |
+| `GET /api/v1/foods/external?q=&maker=&page=0&kind=GENERIC\|BRAND\|ALL` | 식약처 DB 검색(20건/페이지). `GENERIC`=품목대표(일반 식품·음식, 기본), `BRAND`=상용제품(가공식품·외식 프랜차이즈). `maker`=업체·브랜드명(예: 맥도날드). `q`와 `maker` 중 하나는 필요 |
+| `GET /api/v1/foods/barcode/{8~14자리 숫자}` | 바코드 → 제품 → 영양성분 후보(아래 '바코드 조회') |
+| `POST /api/v1/foods/import` `{ "externalCode": "D101-..." }` | 최근 검색·바코드 결과에서 고른 식품을 내 음식으로 저장(이미 있으면 기존 음식 반환) |
+
+**외식 메뉴**: 별도 API 없이 같은 DB에 들어 있습니다(식품군 `음식` + `상용제품`, 예: 맥도날드·롯데리아·버거킹 메뉴). 응답의 `restaurant=true`이면 화면에 '외식' 배지를 붙입니다. 원본 API는 식품군(`DB_GRP_NM`) 조건을 무시하므로 브랜드(`MAKER_NM`)로 좁힙니다.
+
+### 바코드 조회 (식품안전나라)
+
+바코드 API에는 영양성분이 없습니다. 그래서 두 단계로 연결합니다.
+
+1. [식품안전나라 오픈API](https://www.foodsafetykorea.go.kr/api/openApiInfo.do?svc_no=C005) `C005` 바코드연계제품정보(`BAR_CD`) → 없으면 `I2570` 유통바코드(`BRCD_NO`)에서 제품명·**품목제조보고번호**를 얻습니다.
+2. 식약처 영양성분DB를 `ITEM_REPORT_NO`(품목제조보고번호)로 조회합니다 → `match=REPORT_NO`. 연결되지 않으면 제품명(중량·수량·괄호 제거)으로 상용제품을 찾아 **후보로만** 보여 줍니다 → `match=NAME`(사용자가 확인 후 선택). 둘 다 없으면 `NO_NUTRITION`, 바코드 제품이 없으면 `NOT_FOUND`.
+
+설정: 식품안전나라 > 오픈API에서 받은 인증키를 `.env`의 `FOODSAFETY_API_KEY`에 넣습니다(data.go.kr 키와 다름). 비어 있으면 바코드 조회만 503 `FOODSAFETY_NOT_CONFIGURED`, 외부 오류는 502 `FOODSAFETY_UNAVAILABLE`. 인증키는 URL 경로에 들어가므로 요청 URL은 로그에 남기지 않습니다.
 
 정규화 규칙(`MfdsFoodMapper`):
 - 영양값은 원본 기준량(`SERVING_SIZE`, 예: 100g/30g/100mL)에서 **100g 기준으로 환산**합니다. **mL 기준은 1mL ≈ 1g으로 근사**하고 화면에 표시합니다(`volumeBased`).

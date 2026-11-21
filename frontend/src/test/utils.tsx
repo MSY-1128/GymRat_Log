@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import type { DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, User, WorkoutEntry } from '../api/types';
+import type { BarcodeLookup, DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, User, WorkoutEntry } from '../api/types';
 
 export function renderWithProviders(ui: ReactElement, route = '/') {
   const client = createQueryClient(true);
@@ -35,6 +35,8 @@ export function createFakeServer() {
     ] as Food[],
     /** 식약처 DB 검색 결과(서버가 정규화한 형태) */
     external: [] as ExternalFood[],
+    /** 바코드 조회 결과(서버 응답 형태) */
+    barcodes: {} as Record<string, BarcodeLookup>,
     exercises: [{ id: 1, name: '달리기', met: 8, source: 'DEMO' }] as Exercise[],
     meals: [] as MealEntry[],
     workouts: [] as WorkoutEntry[],
@@ -125,11 +127,19 @@ export function createFakeServer() {
     }
     if (method === 'GET' && path === '/foods/external') {
       const q = url.searchParams.get('q') ?? '';
-      const items = state.external.filter((f) => f.name.includes(q));
+      const maker = url.searchParams.get('maker') ?? '';
+      const items = state.external.filter((f) => f.name.includes(q) && (f.makerName ?? '').includes(maker));
       return json(200, { items, page: 0, size: 20, totalElements: items.length, excluded: 0 });
     }
+    if (method === 'GET' && path.startsWith('/foods/barcode/')) {
+      const code = path.slice('/foods/barcode/'.length);
+      const hit = state.barcodes[code];
+      return json(200, hit ?? { barcode: code, product: null, match: 'NOT_FOUND', items: [] });
+    }
     if (method === 'POST' && path === '/foods/import') {
-      const ext = state.external.find((f) => f.externalCode === body.externalCode);
+      const ext = [...state.external, ...Object.values(state.barcodes).flatMap((b) => b.items)].find(
+        (f) => f.externalCode === body.externalCode,
+      );
       if (!ext) return json(409, { code: 'MFDS_SEARCH_EXPIRED', message: '검색 결과가 만료되었어요.', fieldErrors: {} });
       const existing = state.foods.find((f) => f.id === ext.importedFoodId);
       if (existing) return json(200, existing);

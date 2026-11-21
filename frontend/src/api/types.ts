@@ -58,7 +58,11 @@ export interface ExternalFood {
   externalCode: string;
   name: string;
   makerName: string | null;
+  /** 원본 식품군(음식/가공식품 등) */
+  dbGroupName: string | null;
   dbClassName: string | null;
+  /** 외식 프랜차이즈 메뉴(식품군 음식 + 상용제품) */
+  restaurant: boolean;
   category: string | null;
   kcal: number;
   carbsG: number;
@@ -77,6 +81,29 @@ export interface ExternalFood {
 export interface ExternalFoodPage extends Page<ExternalFood> {
   /** 이 페이지에서 데이터 부족·오류로 제외한 건수 */
   excluded: number;
+}
+
+/** 바코드로 찾은 제품(식품안전나라). 영양성분은 items에 있다. */
+export interface BarcodeProduct {
+  barcode: string;
+  productName: string | null;
+  makerName: string | null;
+  category: string | null;
+  /** 대표 품목제조보고번호 */
+  reportNo: string | null;
+  /** 같은 바코드의 보고번호 전체(공장별로 여러 개일 수 있음) */
+  reportNos: string[];
+  source: string;
+}
+
+/** REPORT_NO: 보고번호로 정확히 연결 · NAME: 제품명으로 찾은 후보 · NO_NUTRITION: 영양성분DB에 없음 · NOT_FOUND: 제품 없음 */
+export type BarcodeMatch = 'REPORT_NO' | 'NAME' | 'NO_NUTRITION' | 'NOT_FOUND';
+
+export interface BarcodeLookup {
+  barcode: string;
+  product: BarcodeProduct | null;
+  match: BarcodeMatch;
+  items: ExternalFood[];
 }
 
 export interface FoodInput {
