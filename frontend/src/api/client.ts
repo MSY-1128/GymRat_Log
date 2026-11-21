@@ -2,10 +2,12 @@ import type {
   ApiErrorBody,
   DailySummary,
   Exercise,
+  ExternalFoodPage,
   Food,
   FoodInput,
   MealEntry,
   MealInput,
+  MfdsKind,
   Page,
   Profile,
   ProfileInput,
@@ -73,6 +75,9 @@ export const api = {
   searchFoods: (query: string, page: number, size = 10) =>
     request<Page<Food>>('/foods' + q({ q: query, page, size })),
   createFood: (input: FoodInput) => request<Food>('/foods', json('POST', input)),
+  searchExternalFoods: (query: string, page: number, kind: MfdsKind) =>
+    request<ExternalFoodPage>('/foods/external' + q({ q: query, page, kind })),
+  importFood: (externalCode: string) => request<Food>('/foods/import', json('POST', { externalCode })),
 
   getExercises: () => request<Exercise[]>('/exercises'),
 

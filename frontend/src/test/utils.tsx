@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
-import type { DailySummary, Exercise, Food, MealEntry, Profile, WorkoutEntry } from '../api/types';
+import type { DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, WorkoutEntry } from '../api/types';
 
 export function renderWithProviders(ui: ReactElement, route = '/') {
   const client = new QueryClient({
@@ -27,9 +27,11 @@ export function createFakeServer() {
   const state = {
     profile: null as Profile | null,
     foods: [
-      { id: 1, name: '현미밥', kcal: 150, carbsG: 32, proteinG: 3, fatG: 1, servingGrams: 210, source: 'DEMO' },
-      { id: 2, name: '닭가슴살', kcal: 165, carbsG: 0, proteinG: 31, fatG: 3.6, servingGrams: null, source: 'DEMO' },
+      { id: 1, name: '현미밥', kcal: 150, carbsG: 32, proteinG: 3, fatG: 1, servingGrams: 210, source: 'DEMO', volumeBased: false },
+      { id: 2, name: '닭가슴살', kcal: 165, carbsG: 0, proteinG: 31, fatG: 3.6, servingGrams: null, source: 'DEMO', volumeBased: false },
     ] as Food[],
+    /** 식약처 DB 검색 결과(서버가 정규화한 형태) */
+    external: [] as ExternalFood[],
     exercises: [{ id: 1, name: '달리기', met: 8, source: 'DEMO' }] as Exercise[],
     meals: [] as MealEntry[],
     workouts: [] as WorkoutEntry[],
@@ -80,6 +82,31 @@ export function createFakeServer() {
       const q = url.searchParams.get('q') ?? '';
       const items = state.foods.filter((f) => f.name.includes(q));
       return json(200, { items, page: 0, size: 10, totalElements: items.length });
+    }
+    if (method === 'GET' && path === '/foods/external') {
+      const q = url.searchParams.get('q') ?? '';
+      const items = state.external.filter((f) => f.name.includes(q));
+      return json(200, { items, page: 0, size: 20, totalElements: items.length, excluded: 0 });
+    }
+    if (method === 'POST' && path === '/foods/import') {
+      const ext = state.external.find((f) => f.externalCode === body.externalCode);
+      if (!ext) return json(409, { code: 'MFDS_SEARCH_EXPIRED', message: '검색 결과가 만료되었어요.', fieldErrors: {} });
+      const existing = state.foods.find((f) => f.id === ext.importedFoodId);
+      if (existing) return json(200, existing);
+      const food: Food = {
+        id: state.nextId++,
+        name: ext.name,
+        kcal: ext.kcal,
+        carbsG: ext.carbsG,
+        proteinG: ext.proteinG,
+        fatG: ext.fatG,
+        servingGrams: ext.servingGrams,
+        source: 'MFDS',
+        volumeBased: ext.volumeBased,
+      };
+      state.foods.push(food);
+      ext.importedFoodId = food.id;
+      return json(200, food);
     }
     if (method === 'POST' && path === '/meals') {
       const food = state.foods.find((f) => f.id === body.foodId);

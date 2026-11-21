@@ -30,3 +30,9 @@ spring:
 fitlog:
   seed:
     resource: classpath:seed/data.json
+  mfds:
+    # data.go.kr 식약처 식품영양성분DB Decoding 키. 비어 있으면 식약처 검색은 503(MFDS_NOT_CONFIGURED).
+    service-key: ${MFDS_SERVICE_KEY:}
+    base-url: https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo03
+    connect-timeout: 5s
+    read-timeout: 10s

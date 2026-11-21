@@ -11,11 +11,13 @@ public record FoodResponse(
         BigDecimal proteinG,
         BigDecimal fatG,
         BigDecimal servingGrams,
-        Source source
+        Source source,
+        /* 원본이 100mL 기준(1mL ≈ 1g 근사)인지 */
+        boolean volumeBased
 ) {
 
     public static FoodResponse from(Food f) {
         return new FoodResponse(f.getId(), f.getName(), f.getKcal(), f.getCarbsG(), f.getProteinG(), f.getFatG(),
-                f.getServingGrams(), f.getSource());
+                f.getServingGrams(), f.getSource(), f.isVolumeBased());
     }
 }

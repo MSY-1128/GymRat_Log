@@ -9,7 +9,7 @@ if (-not (Test-Path $envFile)) {
 }
 
 $allowed = @('SPRING_DATASOURCE_URL', 'SPRING_DATASOURCE_USERNAME', 'SPRING_DATASOURCE_PASSWORD',
-             'SPRING_PROFILES_ACTIVE', 'SERVER_PORT', 'SERVER_ADDRESS')
+             'SPRING_PROFILES_ACTIVE', 'SERVER_PORT', 'SERVER_ADDRESS', 'MFDS_SERVICE_KEY')
 foreach ($line in Get-Content $envFile -Encoding UTF8) {
     $t = $line.Trim()
     if ($t -eq '' -or $t.StartsWith('#') -or -not $t.Contains('=')) { continue }

@@ -1,7 +1,7 @@
 # FitLog
 
 한국어 운동·식단 칼로리 관리 앱(로컬 PC 단일 사용자 MVP).
-오늘 / 식단 / 운동 / 기록 / 설정 화면, 프로필 저장, 음식 검색·직접 등록, 식단·운동 CRUD, 날짜 이동, 최근 7일 차트를 제공합니다.
+오늘 / 식단 / 운동 / 기록 / 설정 화면, 프로필 저장, 음식 검색·직접 등록, **식약처 식품영양성분DB 검색·가져오기**, 식단·운동 CRUD, 날짜 이동, 최근 7일 차트를 제공합니다.
 모든 계산은 서버(BigDecimal)가 기준이며, 화면은 kcal 정수·영양소 소수 1자리로 반올림해 표시만 합니다.
 
 > ⚠️ 로그인·사용자 격리가 없습니다. 서버와 개발 서버는 기본 `127.0.0.1`에만 바인딩됩니다. **외부에 공개 배포하지 마세요.**
@@ -63,6 +63,7 @@ Copy-Item .env.example .env   # bash: cp .env.example .env
 | `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | 백엔드 DB 접속 | `jdbc:postgresql://127.0.0.1:5433/fitlog` |
 | `SPRING_PROFILES_ACTIVE` | `demo`면 빈 DB에 data.json 샘플 1회 seed | demo |
 | `SERVER_PORT` | 백엔드 포트 | 8080 |
+| `MFDS_SERVICE_KEY` | data.go.kr 식약처 식품영양성분DB **Decoding** 키(선택). 비우면 식약처 검색만 비활성 | — |
 
 **.env는 자동으로 로딩되지 않습니다.** DB는 Compose의 `env_file`로, 백엔드는 `scripts/run-backend.*`가 `.env`를 읽어 명시적으로 주입합니다.
 (직접 실행하려면 위 변수를 셸 환경변수로 설정한 뒤 `./mvnw spring-boot:run`)
@@ -125,6 +126,29 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/frontend:/w" -v fitlog-node-mod
   -w /w node:22-alpine sh -c "npm ci && npm run typecheck && npm test && npm run build"
 ```
 
+## 식약처 식품영양성분DB 연동
+
+[공공데이터포털 '식품의약품안전처_식품영양성분DB정보'](https://www.data.go.kr/data/15127578/openapi.do)
+(`FoodNtrCpntDbInfo03/getFoodNtrCpntDbInq03`)를 백엔드에서만 호출합니다. 서비스키는 브라우저로 나가지 않고, 키가 들어 있는 요청 URL은 로그에 남기지 않습니다.
+
+1. data.go.kr에서 활용신청 → 마이페이지의 **일반 인증키(Decoding)** 를 `.env`의 `MFDS_SERVICE_KEY`에 넣습니다.
+2. 식단 화면 → "식약처 식품영양성분DB에서 찾기" → 검색 → **가져와서 선택**. 가져온 음식은 내 음식(`source=MFDS`, '식약처' 배지)으로 저장되어 다음부터 일반 검색에 나옵니다.
+
+| API | 설명 |
+|---|---|
+| `GET /api/v1/foods/external?q=&page=0&kind=GENERIC\|BRAND\|ALL` | 식약처 DB 검색(20건/페이지). `GENERIC`=품목대표(일반 식품·음식, 기본), `BRAND`=상용제품 |
+| `POST /api/v1/foods/import` `{ "externalCode": "D101-..." }` | 최근 검색 결과에서 고른 식품을 내 음식으로 저장(이미 있으면 기존 음식 반환) |
+
+정규화 규칙(`MfdsFoodMapper`):
+- 영양값은 원본 기준량(`SERVING_SIZE`, 예: 100g/30g/100mL)에서 **100g 기준으로 환산**합니다. **mL 기준은 1mL ≈ 1g으로 근사**하고 화면에 표시합니다(`volumeBased`).
+- 에너지 `AMT_NUM1`, 탄수화물 `AMT_NUM6`, 단백질 `AMT_NUM3`, 지방 `AMT_NUM4`. 쉼표 숫자("1,010.000")·빈 값·"N/A"를 처리합니다.
+- 탄수화물/단백질/지방이 비어 있으면 0으로 저장하고 "정보 없음(0으로 계산)"으로 알립니다. 에너지가 없거나 값이 비정상(음수, 100g당 900kcal·영양소 100g 초과)이면 후보에서 제외합니다.
+- 1인분 중량은 1회 섭취참고량(`NUTRI_AMOUNT_SERVING`) → 없으면 식품 중량(`Z10500`) 순으로 사용합니다(5000g 이하만).
+- 원본 API는 부분 일치·관련도 정렬 없음이라("콜라" → "쇼콜라" 먼저), 받은 페이지 안에서 정확히 일치 → 앞부분 일치 → 단어 일치 순으로 다시 정렬합니다.
+- 가져오기 요청은 식품코드만 받고 영양값은 서버가 보관한 최근 검색 결과(최대 2시간, 1000건)에서 꺼냅니다. 만료되면 409 `MFDS_SEARCH_EXPIRED`.
+- 오류: 키 미설정 503 `MFDS_NOT_CONFIGURED`, 외부 API 오류·인증 실패·시간 초과 502 `MFDS_UNAVAILABLE`(원인은 서버 로그에만). 화면은 검색 버튼을 누를 때만 조회하고 자동 재시도하지 않습니다(개발계정 트래픽 한도 보호).
+- 테스트는 외부 API를 호출하지 않습니다(MockRestServiceServer / MockitoBean). CI에 키가 필요 없습니다.
+
 ## 데이터와 계산 규칙 요약
 
 - **demo seed**: `demo` 프로필에서만, 음식·운동·기록이 모두 비어 있을 때 `data.json`을 한 번만 넣습니다. `seed_history` 테이블로 적용 여부를 기록하므로 seed 데이터를 지워도 재시작 시 복원되지 않습니다. ID는 DB가 생성하고 샘플 ID는 `sample_id` 컬럼에 매핑합니다. `source=DEMO`가 유지되고 화면에 DEMO/샘플로 표시됩니다. `profileExample`은 사용자 프로필로 저장하지 않습니다.
@@ -142,7 +166,8 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/frontend:/w" -v fitlog-node-mod
 
 - 로그인·사용자별 데이터 격리 없음(공개 배포 전 필수). 프로필은 DB의 첫 번째 행 하나만 사용.
 - 음식/운동 마스터의 수정·삭제 API와 사용자 운동 등록 기능 없음(명세 범위 밖).
-- 실제 영양 DB/API 연동, 즐겨찾기, 내보내기/가져오기, 월간 분석은 미구현.
+- 식약처 DB는 검색·가져오기만 지원. 가져온 뒤 원본이 바뀌어도 자동 동기화하지 않음(가져온 음식 삭제·재가져오기 기능 없음).
+- 즐겨찾기, 내보내기/가져오기, 월간 분석은 미구현.
 - 라이트 테마만 제공. E2E 브라우저 자동화 테스트(Playwright 등)는 아직 없음.
 
 ## GitHub 업로드

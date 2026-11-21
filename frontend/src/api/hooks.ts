@@ -1,10 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { FoodInput, MealInput, ProfileInput, WorkoutInput } from './types';
+import type { FoodInput, MealInput, MfdsKind, ProfileInput, WorkoutInput } from './types';
 
 export const keys = {
   profile: ['profile'] as const,
   foods: (q: string, page: number) => ['foods', q, page] as const,
+  externalFoods: (q: string, page: number, kind: MfdsKind) => ['external-foods', q, kind, page] as const,
   exercises: ['exercises'] as const,
   meals: (date: string) => ['meals', date] as const,
   workouts: (date: string) => ['workouts', date] as const,
@@ -18,6 +19,20 @@ export const useFoods = (q: string, page: number) =>
   useQuery({
     queryKey: keys.foods(q, page),
     queryFn: () => api.searchFoods(q, page),
+    placeholderData: keepPreviousData,
+  });
+
+/**
+ * 식약처 DB 검색. 외부 API 트래픽(개발계정 일일 한도)을 아끼기 위해 검색 버튼으로만 조회하고,
+ * 결과는 10분 캐시하며 실패해도 자동 재시도하지 않는다.
+ */
+export const useExternalFoods = (q: string, page: number, kind: MfdsKind) =>
+  useQuery({
+    queryKey: keys.externalFoods(q, page, kind),
+    queryFn: () => api.searchExternalFoods(q, page, kind),
+    enabled: q !== '',
+    staleTime: 10 * 60_000,
+    retry: false,
     placeholderData: keepPreviousData,
   });
 
@@ -55,6 +70,15 @@ export function useCreateFood() {
   return useMutation({
     mutationFn: (input: FoodInput) => api.createFood(input),
     onSuccess: () => invalidate('foods'),
+  });
+}
+
+export function useImportFood() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (externalCode: string) => api.importFood(externalCode),
+    // 검색 결과의 '이미 가져옴' 표시와 내 음식 목록을 갱신한다
+    onSuccess: () => invalidate('foods', 'external-foods'),
   });
 }
 

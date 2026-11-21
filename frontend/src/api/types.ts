@@ -3,7 +3,8 @@
 export type SexForFormula = 'MALE' | 'FEMALE';
 export type Goal = 'LOSE' | 'MAINTAIN' | 'GAIN';
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
-export type Source = 'DEMO' | 'USER';
+export type Source = 'DEMO' | 'USER' | 'MFDS';
+export type MfdsKind = 'GENERIC' | 'BRAND' | 'ALL';
 
 export interface Profile {
   id: number;
@@ -38,6 +39,34 @@ export interface Food {
   fatG: number;
   servingGrams: number | null;
   source: Source;
+  /** 원본이 100mL 기준이라 1mL ≈ 1g으로 근사한 값 */
+  volumeBased: boolean;
+}
+
+/** 식약처 식품영양성분DB 검색 결과(서버가 100g 기준으로 정규화). */
+export interface ExternalFood {
+  externalCode: string;
+  name: string;
+  makerName: string | null;
+  dbClassName: string | null;
+  category: string | null;
+  kcal: number;
+  carbsG: number;
+  proteinG: number;
+  fatG: number;
+  servingGrams: number | null;
+  /** 원본 영양성분 기준량(예: 100g, 100mL) */
+  basisLabel: string;
+  volumeBased: boolean;
+  /** 원본에 값이 없어 0으로 둔 영양소 */
+  missingNutrients: ('carbsG' | 'proteinG' | 'fatG')[];
+  /** 이미 가져온 경우 FitLog 음식 ID */
+  importedFoodId: number | null;
+}
+
+export interface ExternalFoodPage extends Page<ExternalFood> {
+  /** 이 페이지에서 데이터 부족·오류로 제외한 건수 */
+  excluded: number;
 }
 
 export interface FoodInput {

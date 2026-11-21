@@ -40,7 +40,23 @@ public class Food extends BaseEntity {
     @Column(name = "sample_id")
     private Long sampleId;
 
+    /** 식약처 식품코드(FOOD_CD). MFDS만. */
+    @Column(name = "external_code", length = 50)
+    private String externalCode;
+
+    /** 원본이 100mL 기준이라 1mL ≈ 1g으로 근사한 값인지 여부. */
+    @Column(name = "volume_based", nullable = false)
+    private boolean volumeBased;
+
     protected Food() {
+    }
+
+    public static Food fromMfds(String name, BigDecimal kcal, BigDecimal carbsG, BigDecimal proteinG, BigDecimal fatG,
+                                BigDecimal servingGrams, String externalCode, boolean volumeBased) {
+        Food food = new Food(name, kcal, carbsG, proteinG, fatG, servingGrams, Source.MFDS, null);
+        food.externalCode = externalCode;
+        food.volumeBased = volumeBased;
+        return food;
     }
 
     public Food(String name, BigDecimal kcal, BigDecimal carbsG, BigDecimal proteinG, BigDecimal fatG,
@@ -85,5 +101,13 @@ public class Food extends BaseEntity {
 
     public Long getSampleId() {
         return sampleId;
+    }
+
+    public String getExternalCode() {
+        return externalCode;
+    }
+
+    public boolean isVolumeBased() {
+        return volumeBased;
     }
 }

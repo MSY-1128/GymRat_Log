@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
 import { useDeleteMeal, useMeals, useSaveMeal, useSummary } from '../api/hooks';
-import { MEAL_TYPES, type MealEntry, type MealType } from '../api/types';
+import { MEAL_TYPES, type Food, type MealEntry, type MealType } from '../api/types';
 import { CustomFoodForm } from '../components/CustomFoodForm';
 import { DateNav } from '../components/DateNav';
+import { ExternalFoodSearch } from '../components/ExternalFoodSearch';
 import { Field } from '../components/Field';
 import { FoodPicker, type PickedFood } from '../components/FoodPicker';
 import { Empty, ErrorState, Loading, errorMessage } from '../components/QueryState';
@@ -201,6 +202,14 @@ function MealForm({ date, editing, onDone, onCancel }: MealFormProps) {
     );
   };
 
+  /** 새로 등록하거나 식약처 DB에서 가져온 음식을 바로 선택한다(1인분 중량이 있으면 1인분으로). */
+  const pickNewFood = (f: Food) => {
+    setFood(f);
+    setUnit(f.servingGrams != null ? 'serving' : 'g');
+    setAmount(f.servingGrams != null ? '1' : '100');
+    firstRef.current?.scrollIntoView?.({ block: 'nearest' });
+  };
+
   const apiError = save.error;
   const showFormError = save.isError && !(apiError instanceof ApiError && Object.keys(apiError.fieldErrors).length);
 
@@ -244,9 +253,14 @@ function MealForm({ date, editing, onDone, onCancel }: MealFormProps) {
           onChange={(e) => setAmount(e.target.value)}
           error={errors.grams}
           hint={
-            effectiveUnit === 'serving' && servingGrams != null && Number(amount) > 0
-              ? `= ${formatAmount(Math.round(Number(amount) * servingGrams * 10) / 10)}g`
-              : undefined
+            [
+              effectiveUnit === 'serving' && servingGrams != null && Number(amount) > 0
+                ? `= ${formatAmount(Math.round(Number(amount) * servingGrams * 10) / 10)}g`
+                : '',
+              food?.volumeBased ? 'mL 기준 식품이라 1mL ≈ 1g으로 계산해요.' : '',
+            ]
+              .filter(Boolean)
+              .join(' · ') || undefined
           }
           required
         />
@@ -288,15 +302,15 @@ function MealForm({ date, editing, onDone, onCancel }: MealFormProps) {
       {editing && <p className={ui.hint}>기존 기록은 저장 당시의 음식 영양값을 유지합니다. 음식을 바꾸면 새 값이 적용돼요.</p>}
     </form>
     <details className={styles.custom}>
+      <summary>식약처 식품영양성분DB에서 찾기</summary>
+      <div className={styles.customBody}>
+        <ExternalFoodSearch onImported={pickNewFood} />
+      </div>
+    </details>
+    <details className={styles.custom}>
       <summary>찾는 음식이 없나요? 직접 등록하기</summary>
       <div className={styles.customBody}>
-        <CustomFoodForm
-          onCreated={(f) => {
-            setFood(f);
-            setUnit(f.servingGrams != null ? 'serving' : 'g');
-            if (f.servingGrams != null) setAmount('1');
-          }}
-        />
+        <CustomFoodForm onCreated={pickNewFood} />
       </div>
     </details>
     </>

@@ -52,7 +52,7 @@ export function FoodPicker({ selected, onSelect, error }: Props) {
       ) : foods.isError ? (
         <ErrorState error={foods.error} onRetry={() => foods.refetch()} />
       ) : foods.data.items.length === 0 ? (
-        <Empty>{q ? `'${q}' 검색 결과가 없어요. 아래에서 직접 등록할 수 있어요.` : '등록된 음식이 없어요.'}</Empty>
+        <Empty>{q ? `'${q}' 검색 결과가 없어요. 아래에서 식약처 DB를 찾거나 직접 등록할 수 있어요.` : '등록된 음식이 없어요.'}</Empty>
       ) : (
         <fieldset className={ui.fieldset}>
           <legend className="visually-hidden">음식 선택 (100g 기준)</legend>
@@ -69,9 +69,10 @@ export function FoodPicker({ selected, onSelect, error }: Props) {
                 <span className={styles.optionName}>
                   {f.name}
                   {f.source === 'DEMO' && <span className={ui.badge}>DEMO</span>}
+                  {f.source === 'MFDS' && <span className={ui.badge}>식약처</span>}
                 </span>
                 <span className={styles.optionMeta}>
-                  100g {formatKcal(f.kcal)} kcal
+                  {f.volumeBased ? '100mL≈g' : '100g'} {formatKcal(f.kcal)} kcal
                   {f.servingGrams != null && ` · 1인분 ${formatAmount(f.servingGrams)}g`}
                 </span>
               </label>
