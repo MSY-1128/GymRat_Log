@@ -118,3 +118,47 @@
     font-size: 16px;
   }
 }
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.user {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-height: 34px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.logout:hover:not(:disabled) {
+  background: var(--primary-soft);
+}
+
+/* 데스크톱: 로고 | 메뉴 | 계정. 메뉴가 길어 좁은 데스크톱에서는 계정을 줄바꿈 */
+@media (min-width: 761px) {
+  .header {
+    flex-wrap: wrap;
+  }
+  .nav {
+    margin-left: auto;
+  }
+}

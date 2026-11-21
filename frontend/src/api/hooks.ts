@@ -1,8 +1,9 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { FoodInput, MealInput, MfdsKind, ProfileInput, WorkoutInput } from './types';
+import type { Credentials, FoodInput, MealInput, MfdsKind, ProfileInput, User, WorkoutInput } from './types';
 
 export const keys = {
+  me: ['me'] as const,
   profile: ['profile'] as const,
   foods: (q: string, page: number) => ['foods', q, page] as const,
   externalFoods: (q: string, page: number, kind: MfdsKind) => ['external-foods', q, kind, page] as const,
@@ -12,6 +13,44 @@ export const keys = {
   summary: (date: string) => ['summary', date] as const,
   stats: (from: string, to: string) => ['stats', from, to] as const,
 };
+
+/** 로그인 사용자. 로그인하지 않았으면 data === null. */
+export const useMe = () =>
+  useQuery({ queryKey: keys.me, queryFn: api.me, staleTime: Infinity, retry: false });
+
+/**
+ * 로그인 사용자를 바꾸고 이전 사용자의 캐시(식단·운동 등)를 지운다.
+ * qc.clear()는 화면이 구독 중인 me 쿼리까지 지워 화면이 바뀌지 않으므로, me는 값만 바꿔 화면에 알린다.
+ */
+export function resetSession(qc: QueryClient, user: User | null) {
+  qc.removeQueries({ predicate: (q) => q.queryKey[0] !== keys.me[0] });
+  qc.setQueryData(keys.me, user);
+}
+
+/** 로그인·가입 성공 시 새 사용자로 시작한다. */
+function useStartSession() {
+  const qc = useQueryClient();
+  return (user: User) => resetSession(qc, user);
+}
+
+export function useLogin() {
+  const start = useStartSession();
+  return useMutation({ mutationFn: (input: Credentials) => api.login(input), onSuccess: start });
+}
+
+export function useSignup() {
+  const start = useStartSession();
+  return useMutation({ mutationFn: (input: Credentials) => api.signup(input), onSuccess: start });
+}
+
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.logout,
+    // 서버 세션이 이미 끝났어도(401) 화면은 로그아웃 상태로 만든다
+    onSettled: () => resetSession(qc, null),
+  });
+}
 
 export const useProfile = () => useQuery({ queryKey: keys.profile, queryFn: api.getProfile });
 

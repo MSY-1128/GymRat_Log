@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fitlog.TestUsers;
 import com.fitlog.TestcontainersConfiguration;
 import com.jayway.jsonpath.JsonPath;
 import java.util.HashMap;
@@ -30,6 +31,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.test.web.servlet.ResultActions;
 
 /** 식약처 검색·가져오기 API + 실제 PostgreSQL(V2 마이그레이션). 외부 API는 MfdsClient를 대체한다. */
@@ -39,6 +41,8 @@ import org.springframework.test.web.servlet.ResultActions;
 class MfdsIntegrationTest {
 
     @Autowired
+    WebApplicationContext ctx;
+
     MockMvc mvc;
 
     @Autowired
@@ -49,8 +53,9 @@ class MfdsIntegrationTest {
 
     @BeforeEach
     void clean() {
-        jdbc.execute("TRUNCATE meal_entry, exercise_entry, food, exercise, profile, seed_history "
+        jdbc.execute("TRUNCATE meal_entry, exercise_entry, food, exercise, profile, seed_history, app_user "
                 + "RESTART IDENTITY CASCADE");
+        mvc = TestUsers.mvcAs(ctx, TestUsers.create(jdbc, "tester"));
     }
 
     private static Map<String, String> row(String code, String name, String basis, String kcal, String carbs,

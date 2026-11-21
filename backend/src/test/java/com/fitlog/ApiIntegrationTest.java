@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.test.web.servlet.ResultActions;
 
 /** Spring Boot + 실제 PostgreSQL(Testcontainers) 통합 테스트: CRUD, 합계, snapshot, 오류 형식. */
@@ -30,6 +31,8 @@ class ApiIntegrationTest {
     private static final String DAY = "2026-03-10";
 
     @Autowired
+    WebApplicationContext ctx;
+
     MockMvc mvc;
 
     @Autowired
@@ -40,8 +43,9 @@ class ApiIntegrationTest {
 
     @BeforeEach
     void clean() {
-        jdbc.execute("TRUNCATE meal_entry, exercise_entry, food, exercise, profile, seed_history "
+        jdbc.execute("TRUNCATE meal_entry, exercise_entry, food, exercise, profile, seed_history, app_user "
                 + "RESTART IDENTITY CASCADE");
+        mvc = TestUsers.mvcAs(ctx, TestUsers.create(jdbc, "tester"));
         runningId = jdbc.queryForObject("INSERT INTO exercise (name, met, source, created_at, updated_at) "
                 + "VALUES ('달리기', 8, 'DEMO', now(), now()) RETURNING id", Long.class);
         cyclingId = jdbc.queryForObject("INSERT INTO exercise (name, met, source, created_at, updated_at) "

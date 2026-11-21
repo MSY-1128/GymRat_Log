@@ -33,7 +33,7 @@ class SnapshotTest {
     @Test
     void mealKeepsSnapshotWhenSameFoodChangesLater() {
         Food rice = food(1, "현미밥", "150");
-        MealEntry entry = new MealEntry(DAY, MealType.LUNCH, rice, new BigDecimal("200"));
+        MealEntry entry = new MealEntry(1L, DAY, MealType.LUNCH, rice, new BigDecimal("200"));
         assertThat(entry.calculatedKcal()).isEqualByComparingTo("300");
 
         // 음식 정보가 바뀐 상황(같은 ID, 다른 값)에서 그램만 수정
@@ -48,7 +48,7 @@ class SnapshotTest {
 
     @Test
     void mealTakesNewSnapshotWhenFoodChanges() {
-        MealEntry entry = new MealEntry(DAY, MealType.LUNCH, food(1, "현미밥", "150"), new BigDecimal("100"));
+        MealEntry entry = new MealEntry(1L, DAY, MealType.LUNCH, food(1, "현미밥", "150"), new BigDecimal("100"));
         entry.update(DAY, MealType.LUNCH, food(2, "바나나", "89"), new BigDecimal("100"));
         assertThat(entry.getFoodNameSnapshot()).isEqualTo("바나나");
         assertThat(entry.calculatedKcal()).isEqualByComparingTo("89");
@@ -57,7 +57,7 @@ class SnapshotTest {
 
     @Test
     void workoutKeepsWeightAndMetWhenOnlyMinutesChange() {
-        ExerciseEntry entry = new ExerciseEntry(DAY, exercise(1, "달리기", "8"), 30, new BigDecimal("70"));
+        ExerciseEntry entry = new ExerciseEntry(1L, DAY, exercise(1, "달리기", "8"), 30, new BigDecimal("70"));
         assertThat(entry.calculatedKcal()).isEqualByComparingTo("294");
 
         entry.update(DAY, exercise(1, "달리기", "12"), 60);
@@ -69,7 +69,7 @@ class SnapshotTest {
 
     @Test
     void workoutAppliesNewMetOnlyWhenExerciseChangesAndKeepsWeight() {
-        ExerciseEntry entry = new ExerciseEntry(DAY, exercise(1, "달리기", "8"), 30, new BigDecimal("70"));
+        ExerciseEntry entry = new ExerciseEntry(1L, DAY, exercise(1, "달리기", "8"), 30, new BigDecimal("70"));
         entry.update(DAY, exercise(3, "자전거", "6"), 30);
         assertThat(entry.getNameSnapshot()).isEqualTo("자전거");
         assertThat(entry.getMetSnapshot()).isEqualByComparingTo("6");

@@ -2,6 +2,16 @@ server:
   # 로그인 없는 단일 사용자 MVP: 기본은 로컬 루프백에만 바인딩한다.
   address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      # 로그인 세션(서버 메모리). 백엔드를 재시작하면 다시 로그인해야 한다.
+      timeout: 7d
+      cookie:
+        name: FITLOG_SESSION
+        http-only: true
+        same-site: lax
+        # HTTPS로 서비스할 때는 true로 바꾼다(로컬 http에서는 false여야 쿠키가 저장됨).
+        secure: ${SESSION_COOKIE_SECURE:false}
   error:
     include-message: never
     include-stacktrace: never

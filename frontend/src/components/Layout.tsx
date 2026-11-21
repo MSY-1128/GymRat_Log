@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useSearchParams } from 'react-router';
+import { NavLink, Outlet, useNavigate, useSearchParams } from 'react-router';
+import { useLogout, useMe } from '../api/hooks';
 import styles from './Layout.module.css';
 
 const NAV = [
@@ -13,6 +14,12 @@ export function Layout() {
   const [params] = useSearchParams();
   const date = params.get('date');
   const suffix = date ? `?date=${encodeURIComponent(date)}` : '';
+  const me = useMe();
+  const logout = useLogout();
+  const navigate = useNavigate();
+
+  const doLogout = () =>
+    logout.mutate(undefined, { onSettled: () => navigate('/login', { replace: true }) });
 
   return (
     <div className={styles.shell}>
@@ -38,6 +45,14 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
+        <div className={styles.account}>
+          <span className={styles.user} title="로그인한 계정">
+            {me.data?.username}
+          </span>
+          <button type="button" className={styles.logout} onClick={doLogout} disabled={logout.isPending}>
+            로그아웃
+          </button>
+        </div>
       </header>
       <main id="main" className={styles.main}>
         <Outlet />

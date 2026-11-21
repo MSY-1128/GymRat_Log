@@ -20,6 +20,10 @@ import java.time.LocalDate;
 @Table(name = "exercise_entry")
 public class ExerciseEntry extends BaseEntity {
 
+    /** 소유자(app_user.id). 로그인 도입 전 데이터는 null일 수 있다. */
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "entry_date", nullable = false)
     private LocalDate date;
 
@@ -42,7 +46,8 @@ public class ExerciseEntry extends BaseEntity {
     protected ExerciseEntry() {
     }
 
-    public ExerciseEntry(LocalDate date, Exercise exercise, int minutes, BigDecimal weightKg) {
+    public ExerciseEntry(Long userId, LocalDate date, Exercise exercise, int minutes, BigDecimal weightKg) {
+        this.userId = userId;
         this.date = date;
         this.minutes = minutes;
         this.weightKgSnapshot = weightKg;

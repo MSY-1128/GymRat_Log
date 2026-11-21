@@ -1,5 +1,7 @@
 import type {
   ApiErrorBody,
+  Credentials,
+  User,
   DailySummary,
   Exercise,
   ExternalFoodPage,
@@ -31,18 +33,59 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+const CSRF_COOKIE = 'XSRF-TOKEN';
+const CSRF_HEADER = 'X-XSRF-TOKEN';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function readCookie(name: string): string | null {
+  const hit = document.cookie.split('; ').find((c) => c.startsWith(name + '='));
+  return hit ? decodeURIComponent(hit.slice(name.length + 1)) : null;
+}
+
+/** 서버가 XSRF-TOKEN 쿠키를 내려주도록 한 번 호출한다(로그인 직후에는 토큰이 새로 바뀐다). */
+async function csrfToken(refresh = false): Promise<string | null> {
+  const current = readCookie(CSRF_COOKIE);
+  if (current && !refresh) return current;
+  try {
+    await fetch(BASE + '/auth/csrf', { credentials: 'same-origin' });
+  } catch {
+    // 아래 본 요청에서 네트워크 오류로 처리된다
+  }
+  return readCookie(CSRF_COOKIE);
+}
+
+/** 로그인 세션이 끊겼을 때(401) 호출할 함수. 앱이 등록한다. */
+let onUnauthorized: () => void = () => {};
+export function setUnauthorizedHandler(fn: () => void) {
+  onUnauthorized = fn;
+}
+
+async function request<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (!SAFE_METHODS.has(method)) {
+    const token = await csrfToken(retried);
+    if (token) headers[CSRF_HEADER] = token;
+  }
   let res: Response;
   try {
-    res = await fetch(BASE + path, {
-      ...init,
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init?.headers },
-    });
+    res = await fetch(BASE + path, { ...init, method, headers, credentials: 'same-origin' });
   } catch {
     throw new ApiError(0, {
       code: 'NETWORK_ERROR',
       message: '서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해 주세요.',
     });
+  }
+  // CSRF 토큰이 바뀐 경우(로그인·로그아웃 직후 등) 새 토큰으로 한 번만 다시 시도한다
+  if (res.status === 403 && !SAFE_METHODS.has(method) && !retried) {
+    return request<T>(path, init, true);
+  }
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    onUnauthorized();
   }
   if (res.status === 204) {
     return null as T;
@@ -69,6 +112,19 @@ const q = (params: Record<string, string | number>) =>
   '?' + new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
 
 export const api = {
+  /** 로그인하지 않았으면 null */
+  me: async (): Promise<User | null> => {
+    try {
+      return await request<User>('/auth/me');
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return null;
+      throw e;
+    }
+  },
+  login: (input: Credentials) => request<User>('/auth/login', json('POST', input)),
+  signup: (input: Credentials) => request<User>('/auth/signup', json('POST', input)),
+  logout: () => request<null>('/auth/logout', { method: 'POST' }),
+
   getProfile: () => request<Profile | null>('/profile'),
   saveProfile: (input: ProfileInput) => request<Profile>('/profile', json('PUT', input)),
 

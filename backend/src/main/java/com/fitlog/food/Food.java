@@ -48,7 +48,19 @@ public class Food extends BaseEntity {
     @Column(name = "volume_based", nullable = false)
     private boolean volumeBased;
 
+    /** 직접 등록한 음식(USER)의 소유자. DEMO·MFDS는 null(공유). */
+    @Column(name = "owner_id")
+    private Long ownerId;
+
     protected Food() {
+    }
+
+    /** 사용자가 직접 등록한 음식. 등록한 사람만 검색·사용할 수 있다. */
+    public static Food userFood(Long ownerId, String name, BigDecimal kcal, BigDecimal carbsG, BigDecimal proteinG,
+                                BigDecimal fatG, BigDecimal servingGrams) {
+        Food food = new Food(name, kcal, carbsG, proteinG, fatG, servingGrams, Source.USER, null);
+        food.ownerId = ownerId;
+        return food;
     }
 
     public static Food fromMfds(String name, BigDecimal kcal, BigDecimal carbsG, BigDecimal proteinG, BigDecimal fatG,
@@ -105,6 +117,10 @@ public class Food extends BaseEntity {
 
     public String getExternalCode() {
         return externalCode;
+    }
+
+    public Long getOwnerId() {
+        return ownerId;
     }
 
     public boolean isVolumeBased() {

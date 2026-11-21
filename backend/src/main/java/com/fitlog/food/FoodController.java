@@ -1,11 +1,13 @@
 package com.fitlog.food;
 
+import com.fitlog.auth.AuthUser;
 import com.fitlog.common.PageResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,17 +30,18 @@ public class FoodController {
 
     @GetMapping
     public PageResponse<FoodResponse> search(
+            @AuthenticationPrincipal AuthUser user,
             @RequestParam(defaultValue = "") @Size(max = 50, message = "검색어는 50자 이하로 입력해 주세요.") String q,
             @RequestParam(defaultValue = "0") @Min(value = 0, message = "0 이상이어야 합니다.")
             @Max(value = 10000, message = "10000 이하여야 합니다.") int page,
             @RequestParam(defaultValue = "20") @Min(value = 1, message = "1 이상이어야 합니다.")
             @Max(value = 50, message = "50 이하여야 합니다.") int size) {
-        return service.search(q, page, size);
+        return service.search(user.id(), q, page, size);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public FoodResponse create(@Valid @RequestBody FoodRequest request) {
-        return service.create(request);
+    public FoodResponse create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody FoodRequest request) {
+        return service.create(user.id(), request);
     }
 }

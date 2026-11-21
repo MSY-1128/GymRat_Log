@@ -20,28 +20,31 @@ public class MealService {
     }
 
     @Transactional(readOnly = true)
-    public List<MealResponse> list(LocalDate date) {
-        return repository.findByDateOrderByIdAsc(date).stream().map(MealResponse::from).toList();
+    public List<MealResponse> list(Long userId, LocalDate date) {
+        return repository.findByUserIdAndDateOrderByIdAsc(userId, date).stream().map(MealResponse::from).toList();
     }
 
     @Transactional
-    public MealResponse create(MealRequest r) {
-        Food food = foodService.getEntity(r.foodId());
-        MealEntry entry = repository.save(new MealEntry(r.date(), r.mealType(), food, r.grams()));
+    public MealResponse create(Long userId, MealRequest r) {
+        Food food = foodService.getVisible(userId, r.foodId());
+        MealEntry entry = repository.save(new MealEntry(userId, r.date(), r.mealType(), food, r.grams()));
         return MealResponse.from(entry);
     }
 
     @Transactional
-    public MealResponse update(Long id, MealRequest r) {
-        MealEntry entry = repository.findById(id).orElseThrow(() -> ApiException.notFound("식단 기록"));
-        Food food = foodService.getEntity(r.foodId());
+    public MealResponse update(Long userId, Long id, MealRequest r) {
+        MealEntry entry = find(userId, id);
+        Food food = foodService.getVisible(userId, r.foodId());
         entry.update(r.date(), r.mealType(), food, r.grams());
         return MealResponse.from(repository.saveAndFlush(entry));
     }
 
     @Transactional
-    public void delete(Long id) {
-        MealEntry entry = repository.findById(id).orElseThrow(() -> ApiException.notFound("식단 기록"));
-        repository.delete(entry);
+    public void delete(Long userId, Long id) {
+        repository.delete(find(userId, id));
+    }
+
+    private MealEntry find(Long userId, Long id) {
+        return repository.findByIdAndUserId(id, userId).orElseThrow(() -> ApiException.notFound("식단 기록"));
     }
 }

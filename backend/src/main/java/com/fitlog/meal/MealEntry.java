@@ -22,6 +22,10 @@ import java.time.LocalDate;
 @Table(name = "meal_entry")
 public class MealEntry extends BaseEntity {
 
+    /** 소유자(app_user.id). 로그인 도입 전 데이터는 null일 수 있다. */
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "entry_date", nullable = false)
     private LocalDate date;
 
@@ -54,7 +58,8 @@ public class MealEntry extends BaseEntity {
     protected MealEntry() {
     }
 
-    public MealEntry(LocalDate date, MealType mealType, Food food, BigDecimal grams) {
+    public MealEntry(Long userId, LocalDate date, MealType mealType, Food food, BigDecimal grams) {
+        this.userId = userId;
         this.date = date;
         this.mealType = mealType;
         this.grams = grams;

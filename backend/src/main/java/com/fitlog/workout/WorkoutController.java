@@ -1,10 +1,12 @@
 package com.fitlog.workout;
 
+import com.fitlog.auth.AuthUser;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,24 +29,26 @@ public class WorkoutController {
     }
 
     @GetMapping
-    public List<WorkoutResponse> list(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return service.list(date);
+    public List<WorkoutResponse> list(@AuthenticationPrincipal AuthUser user,
+                                      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return service.list(user.id(), date);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public WorkoutResponse create(@Valid @RequestBody WorkoutRequest request) {
-        return service.create(request);
+    public WorkoutResponse create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody WorkoutRequest request) {
+        return service.create(user.id(), request);
     }
 
     @PutMapping("/{id}")
-    public WorkoutResponse update(@PathVariable Long id, @Valid @RequestBody WorkoutRequest request) {
-        return service.update(id, request);
+    public WorkoutResponse update(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
+                                  @Valid @RequestBody WorkoutRequest request) {
+        return service.update(user.id(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        service.delete(id);
+    public void delete(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
+        service.delete(user.id(), id);
     }
 }

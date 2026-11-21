@@ -6,6 +6,16 @@ export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
 export type Source = 'DEMO' | 'USER' | 'MFDS';
 export type MfdsKind = 'GENERIC' | 'BRAND' | 'ALL';
 
+export interface User {
+  id: number;
+  username: string;
+}
+
+export interface Credentials {
+  username: string;
+  password: string;
+}
+
 export interface Profile {
   id: number;
   age: number;

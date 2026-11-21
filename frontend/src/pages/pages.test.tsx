@@ -105,7 +105,7 @@ describe('MealsPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<App />, `/meals?date=${DAY}`);
 
-    await user.click(screen.getByRole('button', { name: '식단 추가' }));
+    await user.click(await screen.findByRole('button', { name: '식단 추가' }));
     expect(await screen.findByText('음식을 선택해 주세요.')).toBeInTheDocument();
     expect(state.calls.some((c) => c.method === 'POST')).toBe(false);
 

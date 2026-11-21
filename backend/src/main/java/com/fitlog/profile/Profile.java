@@ -13,6 +13,10 @@ import java.math.BigDecimal;
 @Table(name = "profile")
 public class Profile extends BaseEntity {
 
+    /** 소유자(app_user.id). 로그인 도입 전 데이터는 null일 수 있다. */
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(nullable = false)
     private int age;
 
@@ -39,8 +43,9 @@ public class Profile extends BaseEntity {
     protected Profile() {
     }
 
-    public Profile(int age, SexForFormula sexForFormula, BigDecimal heightCm, BigDecimal weightKg,
+    public Profile(Long userId, int age, SexForFormula sexForFormula, BigDecimal heightCm, BigDecimal weightKg,
                    BigDecimal activityFactor, Goal goal, Integer dailyTargetKcal) {
+        this.userId = userId;
         update(age, sexForFormula, heightCm, weightKg, activityFactor, goal, dailyTargetKcal);
     }
 

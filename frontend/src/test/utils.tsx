@@ -1,14 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
-import type { DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, WorkoutEntry } from '../api/types';
+import { createQueryClient } from '../api/queryClient';
+import type { DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, User, WorkoutEntry } from '../api/types';
 
 export function renderWithProviders(ui: ReactElement, route = '/') {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 0 }, mutations: { retry: false } },
-  });
+  const client = createQueryClient(true);
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
@@ -25,6 +24,10 @@ const json = (status: number, body: unknown) =>
 /** 테스트용 인메모리 API. 계산은 서버 규칙과 동일하게 흉내 낸다. */
 export function createFakeServer() {
   const state = {
+    /** 로그인한 사용자(null이면 로그아웃 상태). 기본은 로그인 상태. */
+    user: { id: 1, username: 'tester' } as User | null,
+    accounts: [{ id: 1, username: 'tester', password: 'password-123' }],
+    csrfIssued: 0,
     profile: null as Profile | null,
     foods: [
       { id: 1, name: '현미밥', kcal: 150, carbsG: 32, proteinG: 3, fatG: 1, servingGrams: 210, source: 'DEMO', volumeBased: false },
@@ -38,7 +41,7 @@ export function createFakeServer() {
     nextId: 100,
     /** 특정 경로에 대해 다음 N번 강제로 실패시킨다. */
     failures: new Map<string, { count: number; status: number; body: unknown }>(),
-    calls: [] as { method: string; path: string; body: unknown }[],
+    calls: [] as { method: string; path: string; body: unknown; csrf?: string }[],
   };
 
   const summary = (date: string): DailySummary => {
@@ -64,13 +67,50 @@ export function createFakeServer() {
     const method = (init?.method ?? 'GET').toUpperCase();
     const path = url.pathname.replace('/api/v1', '');
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    state.calls.push({ method, path, body });
+    const csrf = (init?.headers as Record<string, string> | undefined)?.['X-XSRF-TOKEN'];
+    state.calls.push({ method, path, body, csrf });
 
     const fail = state.failures.get(`${method} ${path}`);
     if (fail && fail.count > 0) {
       fail.count -= 1;
       return json(fail.status, fail.body);
     }
+
+    // ---- 인증 ----
+    if (method === 'GET' && path === '/auth/csrf') {
+      state.csrfIssued += 1;
+      document.cookie = `XSRF-TOKEN=tok-${state.csrfIssued}; path=/`;
+      return json(204, null);
+    }
+    if (method === 'GET' && path === '/auth/me') {
+      return state.user ? json(200, state.user) : json(401, { code: 'UNAUTHORIZED', message: '로그인이 필요해요.' });
+    }
+    if (method === 'POST' && path === '/auth/login') {
+      const acc = state.accounts.find(
+        (a) => a.username.toLowerCase() === String(body.username).toLowerCase() && a.password === body.password,
+      );
+      if (!acc)
+        return json(401, { code: 'INVALID_CREDENTIALS', message: '아이디 또는 비밀번호가 올바르지 않아요.', fieldErrors: {} });
+      state.user = { id: acc.id, username: acc.username };
+      return json(200, state.user);
+    }
+    if (method === 'POST' && path === '/auth/signup') {
+      if (state.accounts.some((a) => a.username.toLowerCase() === String(body.username).toLowerCase()))
+        return json(409, {
+          code: 'USERNAME_TAKEN',
+          message: '이미 사용 중인 아이디예요.',
+          fieldErrors: { username: '이미 사용 중인 아이디예요.' },
+        });
+      const acc = { id: state.nextId++, username: body.username, password: body.password };
+      state.accounts.push(acc);
+      state.user = { id: acc.id, username: acc.username };
+      return json(201, state.user);
+    }
+    if (method === 'POST' && path === '/auth/logout') {
+      state.user = null;
+      return json(204, null);
+    }
+    if (!state.user) return json(401, { code: 'UNAUTHORIZED', message: '로그인이 필요해요.' });
 
     const date = url.searchParams.get('date') ?? '';
     if (method === 'GET' && path === '/profile') return state.profile ? json(200, state.profile) : json(204, null);
@@ -147,6 +187,7 @@ export function createFakeServer() {
     return json(404, { code: 'NOT_FOUND', message: '없음', fieldErrors: {} });
   };
 
+  document.cookie = 'XSRF-TOKEN=; max-age=0; path=/';
   const fetchMock = vi.fn(handler);
   vi.stubGlobal('fetch', fetchMock);
   return { state, fetchMock };

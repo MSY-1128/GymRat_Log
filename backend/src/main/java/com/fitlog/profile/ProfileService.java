@@ -15,26 +15,26 @@ public class ProfileService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<ProfileResponse> get() {
-        return repository.findFirstByOrderByIdAsc().map(ProfileResponse::from);
+    public Optional<ProfileResponse> get(Long userId) {
+        return repository.findByUserId(userId).map(ProfileResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public Optional<Profile> current() {
-        return repository.findFirstByOrderByIdAsc();
+    public Optional<Profile> current(Long userId) {
+        return repository.findByUserId(userId);
     }
 
     @Transactional
-    public ProfileResponse save(ProfileRequest r) {
+    public ProfileResponse save(Long userId, ProfileRequest r) {
         BigDecimal factor = AllowedActivityFactor.VALUES.stream()
                 .filter(v -> v.compareTo(r.activityFactor()) == 0).findFirst().orElseThrow();
-        Profile profile = repository.findFirstByOrderByIdAsc()
+        Profile profile = repository.findByUserId(userId)
                 .map(p -> {
                     p.update(r.age(), r.sexForFormula(), r.heightCm(), r.weightKg(), factor, r.goal(),
                             r.dailyTargetKcal());
                     return p;
                 })
-                .orElseGet(() -> new Profile(r.age(), r.sexForFormula(), r.heightCm(), r.weightKg(), factor,
+                .orElseGet(() -> new Profile(userId, r.age(), r.sexForFormula(), r.heightCm(), r.weightKg(), factor,
                         r.goal(), r.dailyTargetKcal()));
         return ProfileResponse.from(repository.saveAndFlush(profile));
     }

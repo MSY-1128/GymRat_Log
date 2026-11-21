@@ -108,7 +108,7 @@ public class DemoSeeder implements ApplicationRunner {
                 log.warn("Seed meal entry {} references unknown sample food {}; skipped.", m.id(), m.foodId());
                 continue;
             }
-            meals.save(new MealEntry(m.date(), m.mealType(), food, m.grams()));
+            meals.save(new MealEntry(null, m.date(), m.mealType(), food, m.grams()));
         }
         for (SeedWorkout w : nullSafe(seed.exerciseEntries())) {
             Exercise exercise = exerciseBySample.get(w.exerciseId());
@@ -116,7 +116,7 @@ public class DemoSeeder implements ApplicationRunner {
                 log.warn("Seed exercise entry {} is incomplete; skipped.", w.id());
                 continue;
             }
-            workouts.save(new ExerciseEntry(w.date(), exercise, w.minutes(), w.weightKg()));
+            workouts.save(new ExerciseEntry(null, w.date(), exercise, w.minutes(), w.weightKg()));
         }
         jdbc.update("UPDATE seed_history SET status = 'APPLIED' WHERE seed_key = ?", SEED_KEY);
         log.info("Demo seed applied: {} foods, {} exercises.", foodBySample.size(), exerciseBySample.size());

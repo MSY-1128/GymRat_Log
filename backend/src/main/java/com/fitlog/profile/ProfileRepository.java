@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProfileRepository extends JpaRepository<Profile, Long> {
 
-    /** 단일 사용자 MVP: 가장 먼저 저장된 프로필 한 건만 사용한다. */
-    Optional<Profile> findFirstByOrderByIdAsc();
+    /** 사용자마다 프로필은 최대 하나(uq_profile_user). */
+    Optional<Profile> findByUserId(Long userId);
 }

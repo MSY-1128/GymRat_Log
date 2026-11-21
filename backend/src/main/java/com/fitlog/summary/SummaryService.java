@@ -35,13 +35,13 @@ public class SummaryService {
     }
 
     @Transactional(readOnly = true)
-    public DailySummary summary(LocalDate date) {
-        return stats(date, date).getFirst();
+    public DailySummary summary(Long userId, LocalDate date) {
+        return stats(userId, date, date).getFirst();
     }
 
     /** from~to(포함) 일별 요약. 기록이 없는 날짜도 0으로 채운다. */
     @Transactional(readOnly = true)
-    public List<DailySummary> stats(LocalDate from, LocalDate to) {
+    public List<DailySummary> stats(Long userId, LocalDate from, LocalDate to) {
         if (from.isAfter(to)) {
             throw ApiException.validation("from", "시작일은 종료일보다 늦을 수 없습니다.");
         }
@@ -49,12 +49,12 @@ public class SummaryService {
         if (days > MAX_STATS_DAYS) {
             throw ApiException.validation("to", "조회 기간은 최대 " + MAX_STATS_DAYS + "일입니다.");
         }
-        Integer target = profileService.current().map(Profile::getDailyTargetKcal).orElse(null);
+        Integer target = profileService.current(userId).map(Profile::getDailyTargetKcal).orElse(null);
 
-        Map<LocalDate, List<MealEntry>> meals = mealRepository.findByDateBetweenOrderByDateAscIdAsc(from, to)
+        Map<LocalDate, List<MealEntry>> meals = mealRepository.findByUserIdAndDateBetweenOrderByDateAscIdAsc(userId, from, to)
                 .stream().collect(Collectors.groupingBy(MealEntry::getDate));
         Map<LocalDate, List<ExerciseEntry>> workouts = exerciseRepository
-                .findByDateBetweenOrderByDateAscIdAsc(from, to)
+                .findByUserIdAndDateBetweenOrderByDateAscIdAsc(userId, from, to)
                 .stream().collect(Collectors.groupingBy(ExerciseEntry::getDate));
 
         List<DailySummary> result = new ArrayList<>((int) days);

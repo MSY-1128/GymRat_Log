@@ -1,7 +1,9 @@
 package com.fitlog.profile;
 
+import com.fitlog.auth.AuthUser;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,12 +22,12 @@ public class ProfileController {
 
     /** 프로필이 없으면 204. */
     @GetMapping
-    public ResponseEntity<ProfileResponse> get() {
-        return service.get().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+    public ResponseEntity<ProfileResponse> get(@AuthenticationPrincipal AuthUser user) {
+        return service.get(user.id()).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PutMapping
-    public ProfileResponse put(@Valid @RequestBody ProfileRequest request) {
-        return service.save(request);
+    public ProfileResponse put(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody ProfileRequest request) {
+        return service.save(user.id(), request);
     }
 }

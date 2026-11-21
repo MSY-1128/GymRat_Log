@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router';
 import { Layout } from './components/Layout';
 import { Loading } from './components/QueryState';
+import { RequireAuth } from './components/RequireAuth';
+import { AuthPage } from './pages/AuthPage';
 import { MealsPage } from './pages/MealsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -14,7 +16,15 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage').then((m) => ({ defa
 export function App() {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="login" element={<AuthPage mode="login" />} />
+      <Route path="signup" element={<AuthPage mode="signup" />} />
+      <Route
+        element={
+          <RequireAuth>
+            <Layout />
+          </RequireAuth>
+        }
+      >
         <Route index element={<TodayPage />} />
         <Route path="meals" element={<MealsPage />} />
         <Route path="workouts" element={<WorkoutsPage />} />
