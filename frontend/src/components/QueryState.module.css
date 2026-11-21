@@ -11,8 +11,8 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--primary);
+  border: 2px solid var(--surface-3);
+  border-top-color: var(--accent-ink);
   animation: spin 0.8s linear infinite;
 }
 
@@ -28,24 +28,26 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 13px 16px;
+  border-radius: var(--radius-sm);
   background: var(--danger-soft);
-  border: 1px solid #f1cdca;
+  border: 1px solid var(--danger-border);
 }
 
 .errorText {
   margin: 0;
   color: var(--danger);
   font-size: 14px;
+  font-weight: 500;
 }
 
 .empty {
   margin: 0;
-  padding: 18px;
+  padding: 22px 18px;
   text-align: center;
   color: var(--text-muted);
+  background: var(--surface-2);
   border: 1px dashed var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
 }

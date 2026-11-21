@@ -1,29 +1,143 @@
+/*
+ * FitLog design tokens
+ * - 잉크(거의 검정) + 라임 포인트, 넉넉한 라운드, 얇은 헤어라인 보더
+ * - 라이트/다크는 각각 따로 고른 값. 시스템 설정을 따르고(data-theme 없음), 사용자가 고르면 data-theme로 고정.
+ * - 데이터 색(--series-*)은 dataviz 팔레트 검증(색각 이상 구분·대비)을 통과한 값.
+ */
 :root {
-  --bg: #f4f6ef;
+  --bg: #f2f2ee;
+  --bg-glow: rgba(200, 241, 105, 0.35);
   --surface: #ffffff;
-  --surface-muted: #f8faf5;
-  --border: #e0e7db;
-  --border-strong: #cad7c9;
-  --text: #214737;
-  --text-muted: #5b6e63;
-  --primary: #235b45;
-  --primary-hover: #1b4836;
-  --primary-soft: #e3eee6;
-  --accent: #93ad65;
-  --accent-soft: #eef3e3;
-  --danger: #b4372f;
-  --danger-soft: #fbeceb;
-  --warning-soft: #fdf6e3;
-  --radius: 18px;
-  --radius-sm: 10px;
-  --shadow: 0 1px 2px rgba(33, 71, 55, 0.04), 0 4px 16px rgba(33, 71, 55, 0.04);
-  --focus: 0 0 0 3px rgba(147, 173, 101, 0.55);
+  --surface-2: #f6f6f2;
+  --surface-3: #ecece6;
+  --glass: rgba(255, 255, 255, 0.72);
+  --border: #e5e5de;
+  --border-strong: #d2d2c9;
+  --text: #0f110e;
+  --text-muted: #5d6158;
+  --text-faint: #8a8e84;
+
+  /* 주요 버튼·활성 탭(라이트: 잉크, 다크: 라임) */
+  --primary: #0f110e;
+  --primary-hover: #2a2d27;
+  --on-primary: #ffffff;
+  --primary-soft: #ecf6d2;
+
+  /* 라임 포인트 — 배경 채움용(위 글자는 --on-accent) */
+  --accent: #c8f169;
+  --accent-strong: #b5e04a;
+  --on-accent: #0f110e;
+  /* 흰 배경 위 글자로 쓸 수 있는 진한 라임 */
+  --accent-ink: #3f6a00;
+
+  --danger: #c2362b;
+  --danger-soft: #fdecea;
+  --danger-border: #f4c6c1;
+  --warning-ink: #6f5200;
+  --warning-soft: #fbf3d9;
+  --warning-border: #eedfa6;
+
+  /* 데이터 색 (dataviz 검증 팔레트 1~3번) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --chart-grid: #e8e8e1;
+  --chart-axis: #c9c9bf;
+
+  --radius-xl: 28px;
+  --radius: 22px;
+  --radius-sm: 14px;
+  --radius-xs: 10px;
+  --shadow: 0 1px 0 rgba(15, 17, 14, 0.03), 0 10px 30px -12px rgba(15, 17, 14, 0.1);
+  --shadow-float: 0 12px 40px -8px rgba(15, 17, 14, 0.22);
+  --focus: 0 0 0 3px var(--bg), 0 0 0 5px #7fb800;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
   color-scheme: light;
-  font-family: system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  font-family: 'Pretendard Variable', Pretendard, system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic',
+    'Apple SD Gothic Neo', sans-serif;
   color: var(--text);
   background: var(--bg);
   line-height: 1.55;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0a0b09;
+    --bg-glow: rgba(200, 241, 105, 0.08);
+    --surface: #161715;
+    --surface-2: #1d1f1b;
+    --surface-3: #262922;
+    --glass: rgba(22, 23, 21, 0.72);
+    --border: #262923;
+    --border-strong: #363a31;
+    --text: #f1f3ec;
+    --text-muted: #a5aa9c;
+    --text-faint: #767b6e;
+    --primary: #d4ff5c;
+    --primary-hover: #e2ff8f;
+    --on-primary: #0a0b09;
+    --primary-soft: rgba(212, 255, 92, 0.12);
+    --accent: #d4ff5c;
+    --accent-strong: #c2f03c;
+    --on-accent: #0a0b09;
+    --accent-ink: #d4ff5c;
+    --danger: #ff7b6e;
+    --danger-soft: rgba(255, 123, 110, 0.12);
+    --danger-border: rgba(255, 123, 110, 0.3);
+    --warning-ink: #f3d27a;
+    --warning-soft: rgba(243, 210, 122, 0.1);
+    --warning-border: rgba(243, 210, 122, 0.26);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --chart-grid: #262923;
+    --chart-axis: #363a31;
+    --shadow: 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+    --shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.7);
+    --focus: 0 0 0 3px var(--bg), 0 0 0 5px #d4ff5c;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0a0b09;
+  --bg-glow: rgba(200, 241, 105, 0.08);
+  --surface: #161715;
+  --surface-2: #1d1f1b;
+  --surface-3: #262922;
+  --glass: rgba(22, 23, 21, 0.72);
+  --border: #262923;
+  --border-strong: #363a31;
+  --text: #f1f3ec;
+  --text-muted: #a5aa9c;
+  --text-faint: #767b6e;
+  --primary: #d4ff5c;
+  --primary-hover: #e2ff8f;
+  --on-primary: #0a0b09;
+  --primary-soft: rgba(212, 255, 92, 0.12);
+  --accent: #d4ff5c;
+  --accent-strong: #c2f03c;
+  --on-accent: #0a0b09;
+  --accent-ink: #d4ff5c;
+  --danger: #ff7b6e;
+  --danger-soft: rgba(255, 123, 110, 0.12);
+  --danger-border: rgba(255, 123, 110, 0.3);
+  --warning-ink: #f3d27a;
+  --warning-soft: rgba(243, 210, 122, 0.1);
+  --warning-border: rgba(243, 210, 122, 0.26);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --chart-grid: #262923;
+  --chart-axis: #363a31;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.7);
+  --focus: 0 0 0 3px var(--bg), 0 0 0 5px #d4ff5c;
+  color-scheme: dark;
 }
 
 *,
@@ -32,17 +146,26 @@
   box-sizing: border-box;
 }
 
+html {
+  background: var(--bg);
+}
+
 body {
   margin: 0;
-  background: var(--bg);
   min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(60rem 30rem at 10% -10%, var(--bg-glow), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
 }
 
 h1,
 h2,
 h3 {
   margin: 0;
-  line-height: 1.3;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
 }
 
 button,
@@ -51,10 +174,16 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+  letter-spacing: inherit;
 }
 
 a {
-  color: var(--primary);
+  color: var(--accent-ink);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 :focus-visible {
@@ -74,9 +203,39 @@ a {
   border: 0;
 }
 
+/* 숫자는 고정폭(자릿수가 바뀌어도 흔들리지 않게) */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 화면 전환(View Transitions) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+  animation-timing-function: var(--ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
+    animation: none !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
     animation: none !important;
   }
 }

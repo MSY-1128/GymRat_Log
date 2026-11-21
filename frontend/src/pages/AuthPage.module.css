@@ -3,67 +3,96 @@
   min-height: 100dvh;
   display: grid;
   place-content: center;
-  gap: 16px;
+  gap: 18px;
   padding: 24px 16px;
 }
 
 .card {
-  width: min(400px, calc(100vw - 32px));
+  position: relative;
+  width: min(420px, calc(100vw - 32px));
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 32px 28px 26px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+  padding: 34px 30px 28px;
+  overflow: hidden;
+  animation: rise 0.5s var(--ease) both;
+}
+
+/* 카드 위쪽 라임 하이라이트 */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: -40% -30% auto auto;
+  width: 80%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, var(--bg-glow), transparent 65%);
+  pointer-events: none;
 }
 
 .brand {
-  font-size: 26px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 21px;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.05em;
   color: var(--text);
-  margin-bottom: 22px;
+  margin-bottom: 28px;
 }
 
-.dot {
-  color: var(--accent);
+.mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) 0 72%, var(--surface-3) 72% 100%);
+  -webkit-mask: radial-gradient(circle, transparent 5.5px, #000 6px);
+  mask: radial-gradient(circle, transparent 5.5px, #000 6px);
 }
 
 .title {
-  font-size: 24px;
+  position: relative;
+  font-size: 32px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.05em;
   margin: 0;
 }
 
 .subtitle {
-  margin: 6px 0 22px;
+  position: relative;
+  margin: 8px 0 26px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 14.5px;
 }
 
 .submit {
   width: 100%;
-  margin-top: 4px;
+  margin-top: 6px;
+  min-height: 52px;
 }
 
 .switch {
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   text-align: center;
   font-size: 14px;
   color: var(--text-muted);
 }
 
 .switch a {
-  color: var(--primary);
-  font-weight: 600;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration-color: var(--accent-strong);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .note {
-  width: min(400px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
   margin: 0;
   text-align: center;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-faint);
 }
 
 .center {
@@ -75,6 +104,9 @@
 
 @media (max-width: 420px) {
   .card {
-    padding: 26px 20px 22px;
+    padding: 28px 22px 24px;
+  }
+  .title {
+    font-size: 28px;
   }
 }

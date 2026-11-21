@@ -37,6 +37,7 @@ SPEC.md / API.md / data.json / preview.html  원본 명세·샘플·시안
 | React Router | 8.5.2 |
 | TanStack Query | 5.108.1 |
 | Recharts | 3.11.0 |
+| Pretendard Variable (글꼴, OFL-1.1) | 1.3.9 |
 | Vite / @vitejs/plugin-react | 8.3.8 / 6.3.0 |
 | TypeScript | 7.0.2 |
 | Vitest / jsdom / Testing Library | 5.1.1 / 31.0.1 / React 16.3.3 |
@@ -191,7 +192,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/frontend:/w" -v fitlog-node-mod
 - 음식/운동 마스터의 수정·삭제 API와 사용자 운동 등록 기능 없음(명세 범위 밖).
 - 식약처 DB는 검색·가져오기만 지원. 가져온 뒤 원본이 바뀌어도 자동 동기화하지 않음(가져온 음식 삭제·재가져오기 기능 없음).
 - 즐겨찾기, 내보내기/가져오기, 월간 분석은 미구현.
-- 라이트 테마만 제공. E2E 브라우저 자동화 테스트(Playwright 등)는 아직 없음.
+- E2E 브라우저 자동화 테스트(Playwright 등)는 저장소에 아직 없음(수동 확인만).
 
 ## GitHub 업로드
 

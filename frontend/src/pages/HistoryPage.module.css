@@ -5,9 +5,10 @@
 }
 
 .stat {
-  font-size: 26px;
+  font-size: clamp(28px, 4vw, 36px);
   font-weight: 800;
-  margin: 8px 0 2px;
+  letter-spacing: -0.05em;
+  margin: 10px 0 4px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -54,6 +55,7 @@
 
 .table tr[aria-current='date'] {
   background: var(--primary-soft);
+  font-weight: 700;
 }
 
 .over {

@@ -5,17 +5,35 @@ import { ErrorState, Loading } from '../components/QueryState';
 import { addDays, formatShortDate } from '../lib/date';
 import { formatGram, formatKcal, roundKcal } from '../lib/format';
 import { useSelectedDate } from '../lib/useSelectedDate';
+import { cssVar, useTheme } from '../lib/theme';
+import { useMemo } from 'react';
 import ui from '../styles/ui.module.css';
 import styles from './HistoryPage.module.css';
 
-// 검증된 2색(밝은 배경 기준 대비·색각 분리 통과). 범례와 표 보기를 함께 제공한다.
-const INTAKE = '#16875a';
-const BURN = '#b57f1f';
+// 차트 색은 테마 토큰(--series-1·2, dataviz 팔레트 검증 통과)에서 읽는다. 범례와 표 보기를 함께 제공한다.
+function useChartColors() {
+  const { resolved } = useTheme();
+  return useMemo(
+    () => ({
+      intake: cssVar('--series-1') || '#2a78d6',
+      burn: cssVar('--series-2') || '#eb6834',
+      grid: cssVar('--chart-grid') || '#e8e8e1',
+      axis: cssVar('--chart-axis') || '#c9c9bf',
+      muted: cssVar('--text-muted') || '#5d6158',
+      text: cssVar('--text') || '#0f110e',
+      surface: cssVar('--surface') || '#ffffff',
+      soft: cssVar('--surface-2') || '#f6f6f2',
+      border: cssVar('--border') || '#e5e5de',
+    }),
+    [resolved],
+  );
+}
 
 export function HistoryPage() {
   const [date, setDate] = useSelectedDate();
   const from = addDays(date, -6);
   const stats = useStats(from, date);
+  const c = useChartColors();
 
   const data =
     stats.data?.map((d) => ({
@@ -73,25 +91,26 @@ export function HistoryPage() {
             <div className={styles.chart} role="img" aria-label="최근 7일 섭취 칼로리와 운동 소모 추정 막대 차트. 아래 표에 같은 값이 있습니다.">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data} margin={{ top: 16, right: 8, left: -8, bottom: 0 }} barGap={2} barCategoryGap="24%">
-                  <CartesianGrid vertical={false} stroke="#e7ece4" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: '#cad7c9' }} tick={{ fill: '#5b6e63', fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: '#5b6e63', fontSize: 12 }} width={52} />
+                  <CartesianGrid vertical={false} stroke={c.grid} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: c.axis }} tick={{ fill: c.muted, fontSize: 12 }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: c.muted, fontSize: 12 }} width={52} />
                   <Tooltip
-                    cursor={{ fill: 'rgba(35, 91, 69, 0.06)' }}
+                    cursor={{ fill: c.soft }}
                     formatter={(value, name) => [`${formatKcal(Number(value))} kcal`, String(name)]}
-                    contentStyle={{ borderRadius: 10, border: '1px solid #e0e7db', fontSize: 13 }}
+                    contentStyle={{ borderRadius: 14, border: `1px solid ${c.border}`, background: c.surface, color: c.text, fontSize: 13 }}
+                    labelStyle={{ color: c.text, fontWeight: 700 }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 13, color: '#214737' }} />
+                  <Legend wrapperStyle={{ fontSize: 13 }} formatter={(v) => <span style={{ color: c.text }}>{v}</span>} />
                   {target != null && (
                     <ReferenceLine
                       y={target}
-                      stroke="#5b6e63"
+                      stroke={c.muted}
                       strokeDasharray="4 4"
-                      label={{ value: `목표 ${formatKcal(target)}`, position: 'insideTopRight', fill: '#5b6e63', fontSize: 12 }}
+                      label={{ value: `목표 ${formatKcal(target)}`, position: 'insideTopRight', fill: c.muted, fontSize: 12 }}
                     />
                   )}
-                  <Bar dataKey="consumed" name="섭취" fill={INTAKE} radius={[4, 4, 0, 0]} maxBarSize={28} />
-                  <Bar dataKey="exercise" name="운동 소모" fill={BURN} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="consumed" name="섭취" fill={c.intake} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="exercise" name="운동 소모" fill={c.burn} radius={[4, 4, 0, 0]} maxBarSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

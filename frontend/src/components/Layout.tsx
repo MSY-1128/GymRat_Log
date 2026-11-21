@@ -1,14 +1,20 @@
 import { NavLink, Outlet, useNavigate, useSearchParams } from 'react-router';
 import { useLogout, useMe } from '../api/hooks';
+import { setTheme, useTheme, type ThemeChoice } from '../lib/theme';
+import { Icon, type IconName } from './Icon';
 import styles from './Layout.module.css';
 
-const NAV = [
-  { to: '/', label: '오늘', icon: '◎' },
-  { to: '/meals', label: '식단', icon: '◐' },
-  { to: '/workouts', label: '운동', icon: '▲' },
-  { to: '/history', label: '기록', icon: '▥' },
-  { to: '/settings', label: '설정', icon: '⚙' },
+const NAV: { to: string; label: string; icon: IconName }[] = [
+  { to: '/', label: '오늘', icon: 'today' },
+  { to: '/meals', label: '식단', icon: 'meals' },
+  { to: '/workouts', label: '운동', icon: 'workouts' },
+  { to: '/history', label: '기록', icon: 'history' },
+  { to: '/settings', label: '설정', icon: 'settings' },
 ];
+
+const THEME_NEXT: Record<ThemeChoice, ThemeChoice> = { system: 'light', light: 'dark', dark: 'system' };
+const THEME_LABEL: Record<ThemeChoice, string> = { system: '시스템 설정', light: '라이트', dark: '다크' };
+const THEME_ICON: Record<ThemeChoice, IconName> = { system: 'system', light: 'sun', dark: 'moon' };
 
 export function Layout() {
   const [params] = useSearchParams();
@@ -17,6 +23,8 @@ export function Layout() {
   const me = useMe();
   const logout = useLogout();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const username = me.data?.username ?? '';
 
   const doLogout = () =>
     logout.mutate(undefined, { onSettled: () => navigate('/login', { replace: true }) });
@@ -27,8 +35,9 @@ export function Layout() {
         본문으로 건너뛰기
       </a>
       <header className={styles.header}>
-        <NavLink to={'/' + suffix} className={styles.brand} aria-label="FitLog 홈">
-          FitLog<span className={styles.dot}>.</span>
+        <NavLink to={'/' + suffix} className={styles.brand} aria-label="FitLog 홈" viewTransition>
+          <span className={styles.mark} aria-hidden="true" />
+          FitLog
         </NavLink>
         <nav aria-label="주요 메뉴" className={styles.nav}>
           {NAV.map((n) => (
@@ -36,21 +45,39 @@ export function Layout() {
               key={n.to}
               to={n.to + suffix}
               end={n.to === '/'}
+              viewTransition
               className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}
             >
-              <span className={styles.icon} aria-hidden="true">
-                {n.icon}
-              </span>
-              {n.label}
+              <Icon name={n.icon} className={styles.icon} />
+              <span>{n.label}</span>
             </NavLink>
           ))}
         </nav>
         <div className={styles.account}>
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={() => setTheme(THEME_NEXT[theme.choice])}
+            aria-label={`테마: ${THEME_LABEL[theme.choice]} (눌러서 ${THEME_LABEL[THEME_NEXT[theme.choice]]}로 바꾸기)`}
+            title={`테마: ${THEME_LABEL[theme.choice]}`}
+          >
+            <Icon name={THEME_ICON[theme.choice]} size={18} />
+          </button>
           <span className={styles.user} title="로그인한 계정">
-            {me.data?.username}
+            <span className={styles.avatar} aria-hidden="true">
+              {username.slice(0, 1).toUpperCase()}
+            </span>
+            <span className={styles.userName}>{username}</span>
           </span>
-          <button type="button" className={styles.logout} onClick={doLogout} disabled={logout.isPending}>
-            로그아웃
+          <button
+            type="button"
+            className={styles.logout}
+            onClick={doLogout}
+            disabled={logout.isPending}
+            aria-label="로그아웃"
+          >
+            <Icon name="logout" size={16} />
+            <span>로그아웃</span>
           </button>
         </div>
       </header>

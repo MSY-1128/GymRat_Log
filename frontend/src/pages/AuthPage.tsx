@@ -64,7 +64,8 @@ export function AuthPage({ mode }: Props) {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.brand}>
-          FitLog<span className={styles.dot}>.</span>
+          <span className={styles.mark} aria-hidden="true" />
+          FitLog
         </div>
         <h1 className={styles.title}>{isSignup ? '계정 만들기' : '로그인'}</h1>
         <p className={styles.subtitle}>

@@ -2,27 +2,37 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 4px 8px 4px 4px;
+  border-radius: 999px;
+  padding: 5px;
+  box-shadow: var(--shadow);
 }
 
 .arrow {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   border: 0;
-  background: transparent;
-  font-size: 22px;
+  background: var(--surface-2);
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  color: var(--primary);
+  color: var(--text);
+  transition:
+    background 0.15s,
+    transform 0.15s var(--ease);
 }
 
 .arrow:hover {
-  background: var(--primary-soft);
+  background: var(--surface-3);
+}
+
+.arrow:active {
+  transform: scale(0.92);
 }
 
 .label {
@@ -30,26 +40,49 @@
 }
 
 .input {
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  padding: 6px 8px;
-  min-height: 40px;
-  background: var(--surface);
-  font-weight: 600;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-height: 38px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.input:hover {
+  background: var(--surface-2);
+}
+
+.input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+:root[data-theme='dark'] .input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
 }
 
 .text {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
   white-space: nowrap;
-  padding: 0 4px;
+  padding: 0 8px 0 2px;
 }
 
 @media (max-width: 520px) {
   .nav {
     width: 100%;
     justify-content: space-between;
+    border-radius: 22px;
   }
   .label {
     flex: 1;
@@ -60,18 +93,19 @@
   .text {
     order: 10;
     flex-basis: 100%;
-    padding: 0 8px 4px;
+    padding: 0 10px 4px;
   }
 }
 
 .today {
   border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--primary);
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   min-height: 34px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
   cursor: pointer;
 }
