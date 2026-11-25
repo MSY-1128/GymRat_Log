@@ -5,6 +5,16 @@ import { App } from '../App';
 import type { Profile } from '../api/types';
 import { addDays, todayString } from '../lib/date';
 import { createFakeServer, renderWithProviders } from '../test/utils';
+import { niceTicks } from './BodyPage';
+
+describe('niceTicks', () => {
+  it('uses even steps around the values', () => {
+    expect(niceTicks([83.2, 82.1, 80.9, 80.2])).toEqual([78, 80, 82, 84]);
+    expect(niceTicks([35.1, 35.8])).toEqual([34.5, 35, 35.5, 36, 36.5]);
+    // 값이 하나여도 범위가 생긴다
+    expect(niceTicks([70])).toEqual([69.5, 70, 70.5]);
+  });
+});
 
 const TODAY = todayString();
 
@@ -58,6 +68,8 @@ describe('체성분', () => {
       }),
     );
     expect(await screen.findByText('체성분을 기록했어요.')).toBeInTheDocument();
+    // 저장 후 입력 칸은 비워진다
+    expect(screen.getByLabelText('체중 (kg)')).toHaveValue(null);
     const row = screen.getAllByRole('row')[1]!;
     expect(row).toHaveTextContent('9.6 kg'); // 체지방량
     expect(row).toHaveTextContent('70.4 kg'); // 제지방량
@@ -71,6 +83,10 @@ describe('체성분', () => {
     });
     const user = userEvent.setup();
     renderWithProviders(<App />, '/body');
+
+    // 항목별 차트: 값이 없는 항목은 '기록 없음'
+    expect(await screen.findByTestId('chart-weight')).toHaveTextContent('80.0kg');
+    expect(screen.getByTestId('chart-muscle')).toHaveTextContent('기록 없음');
 
     const form = await screen.findByRole('form', { name: '체성분 기록' });
     await user.type(within(form).getByLabelText('체중 (kg)'), '40');
@@ -103,6 +119,9 @@ describe('체성분', () => {
     expect(await screen.findByTestId('change-weight')).toHaveTextContent('−1.5 kg');
     expect(screen.getByTestId('change-muscle')).toHaveTextContent('+0.4 kg');
     expect(screen.getByTestId('change-fat')).toHaveTextContent('−1.9 kg');
+    // 각 항목 차트는 측정값을 글로도 갖고 있다(스크린리더용)
+    expect(within(screen.getByTestId('chart-muscle')).getByRole('img')).toHaveAccessibleName(/36\.0kg.*36\.4kg/);
+    expect(screen.getByTestId('chart-fatPct')).toHaveTextContent('18.0%');
 
     await user.click(screen.getByRole('button', { name: '프로필 체중을 80.5kg으로 바꾸기' }));
     await waitFor(() =>

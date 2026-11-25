@@ -97,9 +97,76 @@
   color: var(--text-faint);
 }
 
-.chart {
+/* 항목별 작은 차트 */
+.multiples {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  margin: 0;
+  padding: 14px 14px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.metricHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.metricName {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.metricDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.metricValue {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricValue span {
+  margin-left: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.metricChart {
   width: 100%;
-  height: 300px;
+  height: 170px;
+}
+
+.metricEmpty {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+@media (max-width: 760px) {
+  .multiples {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* 측정 기록 표 */

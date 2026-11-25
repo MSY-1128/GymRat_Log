@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ApiError } from '../api/client';
 import {
   useBodyCompositions,
@@ -34,6 +34,8 @@ export function BodyPage() {
   const del = useDeleteBodyComposition();
   const [editing, setEditing] = useState<BodyComposition | null>(null);
   const [status, setStatus] = useState('');
+  /** 저장 후 입력 칸을 비우기 위해 폼을 새로 만든다 */
+  const [formRound, setFormRound] = useState(0);
 
   const entries = list.data ?? [];
   const latest = entries.at(-1) ?? null;
@@ -72,10 +74,11 @@ export function BodyPage() {
             {editing ? '체성분 수정' : '체성분 기록'}
           </h2>
           <BodyForm
-            key={editing?.id ?? 'new'}
+            key={editing?.id ?? `new-${formRound}`}
             editing={editing}
             onDone={(msg) => {
               setEditing(null);
+              setFormRound((n) => n + 1);
               setStatus(msg);
             }}
             onCancel={() => setEditing(null)}
@@ -103,10 +106,11 @@ export function BodyPage() {
       {entries.length > 0 && (
         <section className={ui.card} aria-labelledby="body-chart-title">
           <h2 id="body-chart-title" className={ui.cardTitle}>
-            추이 (kg)
+            추이
+            <span className={styles.cardHint}>항목마다 눈금이 달라요</span>
           </h2>
-          <TrendChart entries={entries} />
-          <p className={styles.caption}>체지방량은 체지방률을 입력한 날만 표시돼요. 아래 표에 같은 값이 있어요.</p>
+          <TrendCharts entries={entries} />
+          <p className={styles.caption}>값을 입력한 측정일만 점으로 표시돼요. 아래 표에 같은 값이 있어요.</p>
         </section>
       )}
 
@@ -383,54 +387,115 @@ function useChartColors() {
   );
 }
 
-/** 체중·골격근량·체지방량(모두 kg, 한 축). 값이 없는 측정일은 건너뛰고 앞뒤 점을 잇는다. */
-function TrendChart({ entries }: { entries: BodyComposition[] }) {
+type Metric = { key: string; name: string; unit: string; color: string; pick: (b: BodyComposition) => number | null };
+
+/** 항목마다 따로 그린다(작은 여러 차트). 항목별 눈금이라 0.5kg 같은 작은 변화도 보인다. */
+function TrendCharts({ entries }: { entries: BodyComposition[] }) {
   const c = useChartColors();
-  const data = entries.map((b) => ({
-    label: formatShortDate(b.measuredOn),
-    weight: b.weightKg,
-    muscle: b.skeletalMuscleKg,
-    fat: b.fatMassKg == null ? null : Math.round(b.fatMassKg * 10) / 10,
-  }));
-  const series = [
-    { key: 'weight', name: '체중', color: c.weight },
-    { key: 'muscle', name: '골격근량', color: c.muscle },
-    { key: 'fat', name: '체지방량', color: c.fat },
+  const metrics: Metric[] = [
+    { key: 'weight', name: '체중', unit: 'kg', color: c.weight, pick: (b) => b.weightKg },
+    { key: 'muscle', name: '골격근량', unit: 'kg', color: c.muscle, pick: (b) => b.skeletalMuscleKg },
+    { key: 'fat', name: '체지방량', unit: 'kg', color: c.fat, pick: (b) => b.fatMassKg },
+    { key: 'fatPct', name: '체지방률', unit: '%', color: c.fat, pick: (b) => b.bodyFatPct },
   ];
   return (
-    <div
-      className={styles.chart}
-      role="img"
-      aria-label="체중, 골격근량, 체지방량 추이 선 차트. 아래 측정 기록 표에 같은 값이 있습니다."
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 12, right: 12, left: -8, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke={c.grid} />
-          <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: c.axis }} tick={{ fill: c.muted, fontSize: 12 }} />
-          <YAxis tickLine={false} axisLine={false} tick={{ fill: c.muted, fontSize: 12 }} width={44} domain={['auto', 'auto']} />
-          <Tooltip
-            formatter={(value, name) => [`${formatGram(Number(value))} kg`, String(name)]}
-            contentStyle={{ borderRadius: 14, border: `1px solid ${c.border}`, background: c.surface, color: c.text, fontSize: 13 }}
-            labelStyle={{ color: c.text, fontWeight: 700 }}
-            cursor={{ stroke: c.axis, strokeWidth: 1 }}
-          />
-          <Legend wrapperStyle={{ fontSize: 13 }} formatter={(v) => <span style={{ color: c.text }}>{v}</span>} />
-          {series.map((s) => (
-            <Line
-              key={s.key}
-              type="monotone"
-              dataKey={s.key}
-              name={s.name}
-              stroke={s.color}
-              strokeWidth={2}
-              dot={{ r: 4, strokeWidth: 2, stroke: c.surface, fill: s.color }}
-              activeDot={{ r: 6, strokeWidth: 2, stroke: c.surface }}
-              connectNulls
-              isAnimationActive={false}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+    <div className={styles.multiples}>
+      {metrics.map((m) => (
+        <MetricChart key={m.key} metric={m} entries={entries} colors={c} />
+      ))}
     </div>
+  );
+}
+
+/**
+ * 값 범위에 여유를 두고 깔끔한 간격(0.5·1·2·5…)으로 나눈 눈금. 값이 거의 같아도 최소 ±0.5 범위.
+ * 예: 80.2~83.2 → 78, 80, 82, 84
+ */
+export function niceTicks(values: number[]): number[] {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pad = Math.max(0.5, (max - min) * 0.2);
+  const raw = (max - min + 2 * pad) / 4;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= raw) ?? 10 * pow;
+  const lo = Math.floor((min - pad) / step) * step;
+  const hi = Math.ceil((max + pad) / step) * step;
+  const ticks: number[] = [];
+  for (let t = lo; t <= hi + step / 2; t += step) ticks.push(Math.round(t * 10) / 10);
+  return ticks;
+}
+
+function MetricChart({
+  metric: m,
+  entries,
+  colors: c,
+}: {
+  metric: Metric;
+  entries: BodyComposition[];
+  colors: ReturnType<typeof useChartColors>;
+}) {
+  // 값이 있는 측정만 쓴다(값이 없는 날은 점을 찍지 않고 선도 잇지 않음)
+  const data = entries.flatMap((b) => {
+    const v = m.pick(b);
+    return v == null ? [] : [{ label: formatShortDate(b.measuredOn), value: Math.round(v * 10) / 10 }];
+  });
+  const last = data.at(-1);
+  const ticks = data.length ? niceTicks(data.map((d) => d.value)) : [];
+  return (
+    <figure className={styles.metric} data-testid={`chart-${m.key}`}>
+      <figcaption className={styles.metricHead}>
+        <span className={styles.metricName}>
+          <span className={styles.metricDot} style={{ background: m.color }} aria-hidden="true" />
+          {m.name}
+        </span>
+        {last && (
+          <span className={styles.metricValue}>
+            {formatGram(last.value)}
+            <span>{m.unit}</span>
+          </span>
+        )}
+      </figcaption>
+      {data.length === 0 ? (
+        <p className={styles.metricEmpty}>기록 없음</p>
+      ) : (
+        <div
+          className={styles.metricChart}
+          role="img"
+          aria-label={`${m.name} 추이: ${data.map((d) => `${d.label} ${formatGram(d.value)}${m.unit}`).join(', ')}`}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 8, right: 10, left: -14, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke={c.grid} />
+              <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: c.axis }} tick={{ fill: c.muted, fontSize: 11 }} minTickGap={12} />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: c.muted, fontSize: 11 }}
+                width={44}
+                domain={[ticks[0]!, ticks.at(-1)!]}
+                ticks={ticks}
+                allowDecimals
+              />
+              <Tooltip
+                formatter={(value) => [`${formatGram(Number(value))} ${m.unit}`, m.name]}
+                contentStyle={{ borderRadius: 12, border: `1px solid ${c.border}`, background: c.surface, color: c.text, fontSize: 13 }}
+                labelStyle={{ color: c.text, fontWeight: 700 }}
+                cursor={{ stroke: c.axis, strokeWidth: 1 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                name={m.name}
+                stroke={m.color}
+                strokeWidth={2}
+                dot={{ r: 4, strokeWidth: 2, stroke: c.surface, fill: m.color }}
+                activeDot={{ r: 6, strokeWidth: 2, stroke: c.surface }}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </figure>
   );
 }
