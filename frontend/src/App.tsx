@@ -12,6 +12,7 @@ import { WorkoutsPage } from './pages/WorkoutsPage';
 
 // 차트 라이브러리(Recharts)는 기록 화면에서만 필요하므로 분리 로딩한다.
 const HistoryPage = lazy(() => import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })));
+const BodyPage = lazy(() => import('./pages/BodyPage').then((m) => ({ default: m.BodyPage })));
 
 export function App() {
   return (
@@ -33,6 +34,14 @@ export function App() {
           element={
             <Suspense fallback={<Loading label="화면을 불러오는 중…" />}>
               <HistoryPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="body"
+          element={
+            <Suspense fallback={<Loading label="화면을 불러오는 중…" />}>
+              <BodyPage />
             </Suspense>
           }
         />

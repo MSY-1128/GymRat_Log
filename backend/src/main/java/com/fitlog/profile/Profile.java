@@ -40,7 +40,28 @@ public class Profile extends BaseEntity {
     @Column(name = "daily_target_kcal")
     private Integer dailyTargetKcal;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "bmr_method", nullable = false, length = 10)
+    private BmrMethod bmrMethod = BmrMethod.FORMULA;
+
+    /** 단백질 목표(제지방 1kg당 g). 없으면 목표 표시 안 함. */
+    @Column(name = "protein_g_per_kg_lean")
+    private BigDecimal proteinGPerKgLean;
+
     protected Profile() {
+    }
+
+    public final void updateCalculation(BmrMethod bmrMethod, BigDecimal proteinGPerKgLean) {
+        this.bmrMethod = bmrMethod == null ? BmrMethod.FORMULA : bmrMethod;
+        this.proteinGPerKgLean = proteinGPerKgLean;
+    }
+
+    public BmrMethod getBmrMethod() {
+        return bmrMethod;
+    }
+
+    public BigDecimal getProteinGPerKgLean() {
+        return proteinGPerKgLean;
     }
 
     public Profile(Long userId, int age, SexForFormula sexForFormula, BigDecimal heightCm, BigDecimal weightKg,

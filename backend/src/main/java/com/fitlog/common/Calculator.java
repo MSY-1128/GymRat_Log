@@ -30,6 +30,38 @@ public final class Calculator {
                 .add(constant);
     }
 
+    /** 제지방량 = 체중 × (100 − 체지방률) / 100. */
+    public static BigDecimal leanMass(BigDecimal weightKg, BigDecimal bodyFatPct) {
+        if (weightKg == null || bodyFatPct == null) {
+            return null;
+        }
+        return weightKg.multiply(HUNDRED.subtract(bodyFatPct)).divide(HUNDRED);
+    }
+
+    /** 체지방량 = 체중 × 체지방률 / 100. */
+    public static BigDecimal fatMass(BigDecimal weightKg, BigDecimal bodyFatPct) {
+        if (weightKg == null || bodyFatPct == null) {
+            return null;
+        }
+        return weightKg.multiply(bodyFatPct).divide(HUNDRED);
+    }
+
+    /** Katch-McArdle: 370 + 21.6 × 제지방량kg. 성별·나이를 쓰지 않는다. */
+    public static BigDecimal bmrFromLeanMass(BigDecimal leanMassKg) {
+        if (leanMassKg == null) {
+            return null;
+        }
+        return new BigDecimal("370").add(new BigDecimal("21.6").multiply(leanMassKg));
+    }
+
+    /** 단백질 목표 g = 제지방 1kg당 g × 제지방량. */
+    public static BigDecimal proteinTarget(BigDecimal gramsPerKgLean, BigDecimal leanMassKg) {
+        if (gramsPerKgLean == null || leanMassKg == null) {
+            return null;
+        }
+        return gramsPerKgLean.multiply(leanMassKg);
+    }
+
     /** TDEE = BMR × 활동계수. BMR이 null이면 null. */
     public static BigDecimal tdee(BigDecimal bmr, BigDecimal activityFactor) {
         if (bmr == null || activityFactor == null) {

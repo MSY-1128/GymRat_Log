@@ -121,7 +121,7 @@ describe('CSRF', () => {
     renderWithProviders(<App />, '/settings');
 
     await user.type(await screen.findByLabelText(/나이/), '30');
-    await user.type(screen.getByLabelText(/키/), '175');
+    await user.type(screen.getByLabelText('키 (cm)'), '175');
     await user.type(screen.getByLabelText(/체중/), '70');
     await user.click(screen.getByRole('button', { name: /저장/ }));
 

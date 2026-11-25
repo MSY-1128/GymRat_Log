@@ -1,10 +1,12 @@
 import { useId, useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { ApiError } from '../api/client';
 import { useProfile, useSaveProfile } from '../api/hooks';
-import type { Goal, Profile, SexForFormula } from '../api/types';
+import { BMR_METHODS, bmrMethodLabel, type BmrMethod, type Goal, type Profile, type SexForFormula } from '../api/types';
 import { Field } from '../components/Field';
 import { ErrorState, Loading, errorMessage } from '../components/QueryState';
-import { formatKcal } from '../lib/format';
+import { formatShortDate } from '../lib/date';
+import { formatGram, formatKcal } from '../lib/format';
 import ui from '../styles/ui.module.css';
 
 const ACTIVITY = [
@@ -56,26 +58,72 @@ export function SettingsPage() {
             </h2>
             {profile.data == null ? (
               <p className={ui.notice}>아직 저장된 프로필이 없어요. 저장하면 서버가 BMR/TDEE를 계산해요.</p>
-            ) : profile.data.bmrKcal == null ? (
-              <p className={ui.info}>계산식용 성별을 선택하지 않아 BMR/TDEE를 계산하지 않았어요.</p>
             ) : (
-              <dl className={ui.list}>
-                <div className={ui.item}>
-                  <dt>BMR (기초대사량)</dt>
-                  <dd className={ui.itemKcal} data-testid="bmr">
-                    {formatKcal(profile.data.bmrKcal)} kcal
-                  </dd>
-                </div>
-                <div className={ui.item}>
-                  <dt>TDEE (BMR × 활동계수 {profile.data.activityFactor})</dt>
-                  <dd className={ui.itemKcal}>{formatKcal(profile.data.tdeeKcal)} kcal</dd>
-                </div>
-              </dl>
+              <>
+                {profile.data.bmrMethod !== 'FORMULA' && profile.data.bmrAppliedMethod === 'FORMULA' && (
+                  <p className={ui.notice} data-testid="bmr-fallback">
+                    {bmrMethodLabel(profile.data.bmrMethod)}에 필요한 값이 아직 없어{' '}
+                    <Link to="/body">체성분</Link>을 기록하기 전까지 키·몸무게 공식으로 계산해요.
+                  </p>
+                )}
+                {profile.data.bmrKcal == null ? (
+                  <p className={ui.info}>계산식용 성별을 선택하지 않아 BMR/TDEE를 계산하지 않았어요.</p>
+                ) : (
+                  <dl className={ui.list}>
+                    <div className={ui.item}>
+                      <dt>
+                        BMR (기초대사량)
+                        <span className={ui.itemMeta}>
+                          {' · '}
+                          {bmrMethodLabel(profile.data.bmrAppliedMethod ?? 'FORMULA')}
+                          {profile.data.bmrMeasuredOn && ` · ${formatShortDate(profile.data.bmrMeasuredOn)} 측정`}
+                        </span>
+                      </dt>
+                      <dd className={ui.itemKcal} data-testid="bmr">
+                        {formatKcal(profile.data.bmrKcal)} kcal
+                      </dd>
+                    </div>
+                    <div className={ui.item}>
+                      <dt>TDEE (BMR × 활동계수 {profile.data.activityFactor})</dt>
+                      <dd className={ui.itemKcal}>{formatKcal(profile.data.tdeeKcal)} kcal</dd>
+                    </div>
+                  </dl>
+                )}
+                {(profile.data.leanMassKg != null || profile.data.proteinGPerKgLean != null) && (
+                  <dl className={`${ui.list} ${ui.spaced}`}>
+                    {profile.data.leanMassKg != null && (
+                      <div className={ui.item}>
+                        <dt>
+                          제지방량
+                          <span className={ui.itemMeta}>
+                            {' · '}
+                            {formatShortDate(profile.data.leanMassMeasuredOn ?? '')} 측정
+                          </span>
+                        </dt>
+                        <dd className={ui.itemKcal}>{formatGram(profile.data.leanMassKg)} kg</dd>
+                      </div>
+                    )}
+                    <div className={ui.item}>
+                      <dt>단백질 목표 ({profile.data.proteinGPerKgLean ?? '—'} g × 제지방량)</dt>
+                      <dd className={ui.itemKcal} data-testid="protein-target">
+                        {profile.data.proteinTargetG == null ? '체지방률 기록 필요' : `${formatKcal(profile.data.proteinTargetG)} g`}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+              </>
             )}
             <div className={`${ui.info} ${ui.spaced}`}>
               <p className={ui.hint}>
-                • BMR은 Mifflin-St Jeor 참고식(10×체중kg + 6.25×키cm − 5×나이 + 상수)으로 계산합니다. “계산식용 성별”은
-                이 상수(남성 +5, 여성 −161)를 고르기 위한 값일 뿐이며, 선택하지 않으면 BMR/TDEE를 표시하지 않아요.
+                • 키·몸무게 공식은 Mifflin-St Jeor(10×체중kg + 6.25×키cm − 5×나이 + 상수)예요. “계산식용 성별”은 이
+                상수(남성 +5, 여성 −161)를 고르기 위한 값일 뿐이며, 선택하지 않으면 이 공식으로는 계산하지 않아요.
+              </p>
+              <p className={ui.hint}>
+                • 체지방률 공식은 Katch-McArdle(370 + 21.6×제지방량kg)이에요. 근육이 많거나 적어 평균 체형과 다를수록
+                키·몸무게 공식과 차이가 커져요.
+              </p>
+              <p className={ui.hint}>
+                • 체성분 측정값은 수분 상태에 따라 흔들려요. 같은 조건(아침 공복 등)에서 잰 값의 추세를 보세요.
               </p>
               <p className={ui.hint}>
                 • 목표(감량/유지/증량)는 기록용이며, 하루 섭취 목표 칼로리는 직접 입력해요. 앱이 자동으로 정하지
@@ -104,6 +152,8 @@ function ProfileForm({ profile }: { profile: Profile | null }) {
   const [factor, setFactor] = useState(profile ? String(Number(profile.activityFactor)) : '1.2');
   const [goal, setGoal] = useState<Goal>(profile?.goal ?? 'MAINTAIN');
   const [target, setTarget] = useState(profile?.dailyTargetKcal != null ? String(profile.dailyTargetKcal) : '');
+  const [bmrMethod, setBmrMethod] = useState<BmrMethod>(profile?.bmrMethod ?? 'FORMULA');
+  const [protein, setProtein] = useState(profile?.proteinGPerKgLean != null ? String(profile.proteinGPerKgLean) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
   const factorId = useId();
@@ -122,6 +172,8 @@ function ProfileForm({ profile }: { profile: Profile | null }) {
     if (!(w >= 30 && w <= 350)) errs.weightKg = '30~350kg 사이로 입력해 주세요.';
     if (target.trim() !== '' && !(Number.isInteger(t) && t >= 1 && t <= 10000))
       errs.dailyTargetKcal = '1~10000 사이 정수로 입력하거나 비워 두세요.';
+    const p = n(protein);
+    if (protein.trim() !== '' && !(p >= 0.8 && p <= 3)) errs.proteinGPerKgLean = '0.8~3.0 사이로 입력하거나 비워 두세요.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
 
@@ -134,6 +186,8 @@ function ProfileForm({ profile }: { profile: Profile | null }) {
         activityFactor: Number(factor),
         goal,
         dailyTargetKcal: target.trim() === '' ? null : t,
+        bmrMethod,
+        proteinGPerKgLean: protein.trim() === '' ? null : Math.round(p * 10) / 10,
       },
       {
         onSuccess: () => setStatus('프로필을 저장했어요.'),
@@ -189,6 +243,36 @@ function ProfileForm({ profile }: { profile: Profile | null }) {
           ))}
         </div>
       </fieldset>
+
+      <fieldset className={ui.fieldset}>
+        <legend>기초대사량 계산 방식</legend>
+        <div className={ui.choices}>
+          {BMR_METHODS.map((m) => (
+            <label key={m.value} className={ui.choice}>
+              <input type="radio" name="bmrMethod" value={m.value} checked={bmrMethod === m.value} onChange={() => setBmrMethod(m.value)} />
+              {m.label}
+            </label>
+          ))}
+        </div>
+        <p className={ui.hint}>
+          체지방률 공식·인바디 측정값은 <Link to="/body">체성분</Link>에 기록한 가장 최근 값을 써요. 값이 없으면 키·몸무게
+          공식으로 계산해요.
+        </p>
+      </fieldset>
+
+      <Field
+        label="단백질 목표 (제지방 1kg당 g, 선택)"
+        type="number"
+        inputMode="decimal"
+        min={0.8}
+        max={3}
+        step="0.1"
+        value={protein}
+        onChange={(e) => setProtein(e.target.value)}
+        error={errors.proteinGPerKgLean}
+        placeholder="미설정"
+        hint="0.8~3.0. 체지방률을 기록해야 목표 g이 계산돼요."
+      />
 
       {save.isError && !(save.error instanceof ApiError && Object.keys(save.error.fieldErrors).length) && (
         <p className={ui.formError} role="alert">

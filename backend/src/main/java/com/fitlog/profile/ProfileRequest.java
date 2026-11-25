@@ -39,6 +39,14 @@ public record ProfileRequest(
 
         @Min(value = 1, message = "1 이상이어야 합니다.")
         @Max(value = 10000, message = "10000 이하여야 합니다.")
-        Integer dailyTargetKcal
+        Integer dailyTargetKcal,
+
+        /** 생략하면 FORMULA */
+        BmrMethod bmrMethod,
+
+        @DecimalMin(value = "0.8", message = "0.8 이상이어야 합니다.")
+        @DecimalMax(value = "3.0", message = "3.0 이하여야 합니다.")
+        @Digits(integer = 1, fraction = 1, message = "소수 첫째 자리까지 입력해 주세요.")
+        BigDecimal proteinGPerKgLean
 ) {
 }

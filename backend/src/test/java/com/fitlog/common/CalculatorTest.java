@@ -31,6 +31,28 @@ class CalculatorTest {
     }
 
     @Test
+    void bodyFatSplitsWeightIntoFatAndLeanMass() {
+        // 80kg, 체지방 12% → 체지방 9.6kg, 제지방 70.4kg
+        assertThat(Calculator.fatMass(bd("80"), bd("12"))).isEqualByComparingTo("9.6");
+        assertThat(Calculator.leanMass(bd("80"), bd("12"))).isEqualByComparingTo("70.4");
+        assertThat(Calculator.leanMass(bd("80"), null)).isNull();
+    }
+
+    @Test
+    void katchMcArdleUsesLeanMassOnly() {
+        // 370 + 21.6 × 70.4 = 1890.64
+        assertThat(Calculator.bmrFromLeanMass(bd("70.4"))).isEqualByComparingTo("1890.64");
+        assertThat(Calculator.bmrFromLeanMass(null)).isNull();
+    }
+
+    @Test
+    void proteinTargetIsPerKgLeanMass() {
+        assertThat(Calculator.proteinTarget(bd("2.0"), bd("70.4"))).isEqualByComparingTo("140.8");
+        assertThat(Calculator.proteinTarget(bd("2.0"), null)).isNull();
+        assertThat(Calculator.proteinTarget(null, bd("70.4"))).isNull();
+    }
+
+    @Test
     void tdeeMultipliesActivityFactor() {
         assertThat(Calculator.tdee(bd("1648.75"), bd("1.2"))).isEqualByComparingTo("1978.5");
         assertThat(Calculator.tdee(bd("1648.75"), bd("1.375"))).isEqualByComparingTo("2267.03125");

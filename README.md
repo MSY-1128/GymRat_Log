@@ -189,6 +189,9 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/frontend:/w" -v fitlog-node-mod
 
 - **demo seed**: `demo` 프로필에서만, 음식·운동·기록이 모두 비어 있을 때 `data.json`을 한 번만 넣습니다. `seed_history` 테이블로 적용 여부를 기록하므로 seed 데이터를 지워도 재시작 시 복원되지 않습니다. ID는 DB가 생성하고 샘플 ID는 `sample_id` 컬럼에 매핑합니다. `source=DEMO`가 유지되고 화면에 DEMO/샘플로 표시됩니다. `profileExample`은 사용자 프로필로 저장하지 않습니다.
 - **BMR**(Mifflin-St Jeor) = 10×kg + 6.25×cm − 5×나이 + (MALE +5 / FEMALE −161), 성별 미선택 시 BMR/TDEE는 null. **TDEE** = BMR × 활동계수(1.2/1.375/1.55/1.725/1.9).
+- **체성분**(`/api/v1/body-compositions?from=&to=`, POST/PUT/DELETE): 인바디 결과지를 직접 입력. 체중 필수, 체지방률·골격근량·기초대사량·내장지방 레벨은 선택. 사용자별 하루 1건(중복 409 `DUPLICATE_DATE`). 체지방량 = 체중 × 체지방률/100, 제지방량 = 체중 − 체지방량(서버 계산).
+- **BMR 계산 방식**(프로필 `bmrMethod`): `FORMULA`(위 Mifflin) / `BODY_FAT`(Katch-McArdle = 370 + 21.6 × 제지방량, 체지방률이 있는 최근 측정) / `MEASURED`(기초대사량이 있는 최근 측정값). 필요한 측정이 없으면 `FORMULA`로 계산하고 `bmrAppliedMethod`로 실제 방식을 알려 줍니다.
+- **단백질 목표** = 제지방 1kg당 g(프로필 `proteinGPerKgLean`, 0.8~3.0) × 최근 제지방량. 체지방률 기록이 없으면 null.
 - **음식** = 100g 기준값 × g / 100 (0 < g ≤ 5000). 인분 단위는 `servingGrams`가 있는 음식만 지원(화면에서 g로 환산해 전송).
 - **운동** = MET × 3.5 × 체중kg / 200 × 분 (1~1440분). 생성 시 프로필 체중을 snapshot 저장(프로필 없으면 409 `PROFILE_REQUIRED`). 수정 시 체중 유지, 운동 종류가 바뀔 때만 새 MET 적용.
 - **남은 칼로리** = 목표 − 섭취(음수 그대로, 목표 미설정이면 null). 운동량은 목표에 자동 가산하지 않습니다.

@@ -9,6 +9,7 @@ const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: '/meals', label: '식단', icon: 'meals' },
   { to: '/workouts', label: '운동', icon: 'workouts' },
   { to: '/history', label: '기록', icon: 'history' },
+  { to: '/body', label: '체성분', icon: 'body' },
   { to: '/settings', label: '설정', icon: 'settings' },
 ];
 

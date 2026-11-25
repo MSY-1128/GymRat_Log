@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import type { BarcodeLookup, DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, User, WorkoutEntry } from '../api/types';
+import type { BarcodeLookup, BodyComposition, DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, User, WorkoutEntry } from '../api/types';
 
 export function renderWithProviders(ui: ReactElement, route = '/') {
   const client = createQueryClient(true);
@@ -40,6 +40,8 @@ export function createFakeServer() {
     exercises: [{ id: 1, name: '달리기', met: 8, source: 'DEMO' }] as Exercise[],
     meals: [] as MealEntry[],
     workouts: [] as WorkoutEntry[],
+    /** 체성분 기록(서버 응답 형태: 체지방량·제지방량 포함) */
+    bodies: [] as BodyComposition[],
     nextId: 100,
     /** 특정 경로에 대해 다음 N번 강제로 실패시킨다. */
     failures: new Map<string, { count: number; status: number; body: unknown }>(),
@@ -61,6 +63,41 @@ export function createFakeServer() {
       carbsG: meals.reduce((a, m) => a + m.carbsG, 0),
       proteinG: meals.reduce((a, m) => a + m.proteinG, 0),
       fatG: meals.reduce((a, m) => a + m.fatG, 0),
+    };
+  };
+
+  const bodyView = (b: Omit<BodyComposition, 'fatMassKg' | 'leanMassKg'>): BodyComposition => ({
+    ...b,
+    fatMassKg: b.bodyFatPct == null ? null : (b.weightKg * b.bodyFatPct) / 100,
+    leanMassKg: b.bodyFatPct == null ? null : (b.weightKg * (100 - b.bodyFatPct)) / 100,
+  });
+
+  /** 서버와 같은 규칙으로 BMR 방식·제지방량·단백질 목표를 붙인다(키·몸무게 공식 값은 생략). */
+  const profileView = (): Profile => {
+    const p = state.profile!;
+    const byDateDesc = [...state.bodies].sort((a, b) => b.measuredOn.localeCompare(a.measuredOn));
+    const fat = byDateDesc.find((b) => b.leanMassKg != null) ?? null;
+    const measured = byDateDesc.find((b) => b.measuredBmrKcal != null) ?? null;
+    const lean = fat?.leanMassKg ?? null;
+    let applied: Profile['bmrAppliedMethod'] = null;
+    let bmr: number | null = null;
+    let basis: string | null = null;
+    if (p.bmrMethod === 'MEASURED' && measured) {
+      [applied, bmr, basis] = ['MEASURED', measured.measuredBmrKcal, measured.measuredOn];
+    } else if (p.bmrMethod === 'BODY_FAT' && lean != null) {
+      [applied, bmr, basis] = ['BODY_FAT', 370 + 21.6 * lean, fat!.measuredOn];
+    }
+    return {
+      ...p,
+      bmrMethod: p.bmrMethod ?? 'FORMULA',
+      bmrAppliedMethod: applied ?? (p.sexForFormula ? 'FORMULA' : null),
+      bmrMeasuredOn: basis,
+      bmrKcal: bmr,
+      tdeeKcal: bmr == null ? null : bmr * p.activityFactor,
+      leanMassKg: lean,
+      leanMassMeasuredOn: fat?.measuredOn ?? null,
+      proteinGPerKgLean: p.proteinGPerKgLean ?? null,
+      proteinTargetG: p.proteinGPerKgLean != null && lean != null ? p.proteinGPerKgLean * lean : null,
     };
   };
 
@@ -115,7 +152,7 @@ export function createFakeServer() {
     if (!state.user) return json(401, { code: 'UNAUTHORIZED', message: '로그인이 필요해요.' });
 
     const date = url.searchParams.get('date') ?? '';
-    if (method === 'GET' && path === '/profile') return state.profile ? json(200, state.profile) : json(204, null);
+    if (method === 'GET' && path === '/profile') return state.profile ? json(200, profileView()) : json(204, null);
     if (method === 'GET' && path === '/summary') return json(200, summary(date));
     if (method === 'GET' && path === '/meals') return json(200, state.meals.filter((m) => m.date === date));
     if (method === 'GET' && path === '/workouts') return json(200, state.workouts.filter((w) => w.date === date));
@@ -191,8 +228,35 @@ export function createFakeServer() {
         return json(409, { code: 'PROFILE_REQUIRED', message: '운동 기록 전에 설정에서 프로필(체중)을 저장해 주세요.' });
     }
     if (method === 'PUT' && path === '/profile') {
-      state.profile = { id: 1, ...body, bmrKcal: null, tdeeKcal: null, updatedAt: new Date().toISOString() };
-      return json(200, state.profile);
+      state.profile = { id: 1, ...body, updatedAt: new Date().toISOString() } as Profile;
+      return json(200, profileView());
+    }
+
+    // ---- 체성분 ----
+    if (method === 'GET' && path === '/body-compositions') {
+      const from = url.searchParams.get('from') ?? '';
+      const to = url.searchParams.get('to') ?? '';
+      const items = state.bodies
+        .filter((b) => b.measuredOn >= from && b.measuredOn <= to)
+        .sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
+      return json(200, items);
+    }
+    const bodyId = /^\/body-compositions\/(\d+)$/.exec(path);
+    if ((method === 'POST' && path === '/body-compositions') || (method === 'PUT' && bodyId)) {
+      const id = bodyId ? Number(bodyId[1]) : state.nextId++;
+      if (state.bodies.some((b) => b.measuredOn === body.measuredOn && b.id !== id))
+        return json(409, {
+          code: 'DUPLICATE_DATE',
+          message: '이 날짜에는 이미 기록이 있어요.',
+          fieldErrors: { measuredOn: '이 날짜에는 이미 기록이 있어요.' },
+        });
+      const entry = bodyView({ id, ...body });
+      state.bodies = [...state.bodies.filter((b) => b.id !== id), entry];
+      return json(bodyId ? 200 : 201, entry);
+    }
+    if (method === 'DELETE' && bodyId) {
+      state.bodies = state.bodies.filter((b) => b.id !== Number(bodyId[1]));
+      return json(204, null);
     }
     return json(404, { code: 'NOT_FOUND', message: '없음', fieldErrors: {} });
   };

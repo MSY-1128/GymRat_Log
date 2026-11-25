@@ -5,6 +5,8 @@ export type Goal = 'LOSE' | 'MAINTAIN' | 'GAIN';
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
 export type Source = 'DEMO' | 'USER' | 'MFDS';
 export type MfdsKind = 'GENERIC' | 'BRAND' | 'ALL';
+/** 기초대사량 계산 방식: 키·몸무게 공식 / 체지방률(제지방량) 공식 / 측정기 값 */
+export type BmrMethod = 'FORMULA' | 'BODY_FAT' | 'MEASURED';
 
 export interface User {
   id: number;
@@ -25,8 +27,19 @@ export interface Profile {
   activityFactor: number;
   goal: Goal;
   dailyTargetKcal: number | null;
+  bmrMethod: BmrMethod;
+  /** 실제로 계산에 쓴 방식(측정값이 없으면 FORMULA). BMR을 못 구하면 null */
+  bmrAppliedMethod: BmrMethod | null;
+  /** BODY_FAT·MEASURED로 계산했을 때 쓴 측정 날짜 */
+  bmrMeasuredOn: string | null;
   bmrKcal: number | null;
   tdeeKcal: number | null;
+  /** 최근 체지방률 측정으로 구한 제지방량 */
+  leanMassKg: number | null;
+  leanMassMeasuredOn: string | null;
+  /** 단백질 목표(제지방 1kg당 g) */
+  proteinGPerKgLean: number | null;
+  proteinTargetG: number | null;
   updatedAt: string;
 }
 
@@ -38,6 +51,8 @@ export interface ProfileInput {
   activityFactor: number;
   goal: Goal;
   dailyTargetKcal: number | null;
+  bmrMethod: BmrMethod;
+  proteinGPerKgLean: number | null;
 }
 
 export interface Food {
@@ -197,3 +212,33 @@ export const MEAL_TYPES: { value: MealType; label: string }[] = [
 
 export const mealTypeLabel = (t: MealType): string =>
   MEAL_TYPES.find((m) => m.value === t)?.label ?? t;
+
+/** 체성분 측정 기록(인바디 결과지를 직접 입력). 체지방량·제지방량은 서버 계산값. */
+export interface BodyComposition {
+  id: number;
+  measuredOn: string;
+  weightKg: number;
+  bodyFatPct: number | null;
+  skeletalMuscleKg: number | null;
+  measuredBmrKcal: number | null;
+  visceralFatLevel: number | null;
+  fatMassKg: number | null;
+  leanMassKg: number | null;
+}
+
+export interface BodyCompositionInput {
+  measuredOn: string;
+  weightKg: number;
+  bodyFatPct: number | null;
+  skeletalMuscleKg: number | null;
+  measuredBmrKcal: number | null;
+  visceralFatLevel: number | null;
+}
+
+export const BMR_METHODS: { value: BmrMethod; label: string; short: string }[] = [
+  { value: 'FORMULA', label: '키·몸무게 공식 (Mifflin-St Jeor)', short: '키·몸무게 공식' },
+  { value: 'BODY_FAT', label: '체지방률 공식 (Katch-McArdle)', short: '체지방률 공식' },
+  { value: 'MEASURED', label: '인바디 측정값', short: '인바디 측정값' },
+];
+
+export const bmrMethodLabel = (m: BmrMethod): string => BMR_METHODS.find((x) => x.value === m)?.short ?? m;

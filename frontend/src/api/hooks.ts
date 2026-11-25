@@ -1,6 +1,6 @@
 import { keepPreviousData, type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { Credentials, FoodInput, MealInput, MfdsKind, ProfileInput, User, WorkoutInput } from './types';
+import type { BodyCompositionInput, Credentials, FoodInput, MealInput, MfdsKind, ProfileInput, User, WorkoutInput } from './types';
 
 export const keys = {
   me: ['me'] as const,
@@ -14,6 +14,7 @@ export const keys = {
   workouts: (date: string) => ['workouts', date] as const,
   summary: (date: string) => ['summary', date] as const,
   stats: (from: string, to: string) => ['stats', from, to] as const,
+  body: (from: string, to: string) => ['body', from, to] as const,
 };
 
 /** 로그인 사용자. 로그인하지 않았으면 data === null. */
@@ -101,6 +102,13 @@ export const useSummary = (date: string) =>
 export const useStats = (from: string, to: string) =>
   useQuery({ queryKey: keys.stats(from, to), queryFn: () => api.getStats(from, to) });
 
+export const useBodyCompositions = (from: string, to: string) =>
+  useQuery({
+    queryKey: keys.body(from, to),
+    queryFn: () => api.getBodyCompositions(from, to),
+    placeholderData: keepPreviousData,
+  });
+
 /** 저장 성공 후 관련 Query(목록·요약·차트)를 무효화한다. */
 function useInvalidate() {
   const qc = useQueryClient();
@@ -113,6 +121,24 @@ export function useSaveProfile() {
   return useMutation({
     mutationFn: (input: ProfileInput) => api.saveProfile(input),
     onSuccess: () => invalidate('profile', 'summary', 'stats'),
+  });
+}
+
+/** 체성분이 바뀌면 프로필의 BMR·제지방량·단백질 목표도 다시 계산된다. */
+export function useSaveBodyComposition() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: number; input: BodyCompositionInput }) =>
+      id == null ? api.createBodyComposition(input) : api.updateBodyComposition(id, input),
+    onSuccess: () => invalidate('body', 'profile'),
+  });
+}
+
+export function useDeleteBodyComposition() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (id: number) => api.deleteBodyComposition(id),
+    onSuccess: () => invalidate('body', 'profile'),
   });
 }
 

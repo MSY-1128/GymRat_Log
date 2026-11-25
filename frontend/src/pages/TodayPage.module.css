@@ -364,3 +364,44 @@
     font-size: 18px;
   }
 }
+
+/* 단백질 목표 진행 */
+.goal {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.goalHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.goalHead strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.goalTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.goalFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--series-2);
+}
+
+.goalNote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}

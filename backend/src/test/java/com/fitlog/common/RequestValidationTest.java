@@ -44,7 +44,7 @@ class RequestValidationTest {
 
     private static ProfileRequest profile(int age, String height, String weight, String factor) {
         return new ProfileRequest(age, SexForFormula.MALE, new BigDecimal(height), new BigDecimal(weight),
-                new BigDecimal(factor), Goal.MAINTAIN, null);
+                new BigDecimal(factor), Goal.MAINTAIN, null, null, null);
     }
 
     @Test
@@ -53,7 +53,7 @@ class RequestValidationTest {
         assertThat(invalidFields(profile(100, "250", "350", "1.9"))).isEmpty();
         // 성별/목표 칼로리 미입력 허용
         assertThat(invalidFields(new ProfileRequest(30, null, new BigDecimal("175"), new BigDecimal("70"),
-                new BigDecimal("1.55"), Goal.LOSE, null))).isEmpty();
+                new BigDecimal("1.55"), Goal.LOSE, null, null, null))).isEmpty();
     }
 
     @Test
@@ -81,7 +81,7 @@ class RequestValidationTest {
     @Test
     void dailyTargetMustBePositiveWhenPresent() {
         ProfileRequest r = new ProfileRequest(30, null, new BigDecimal("175"), new BigDecimal("70"),
-                new BigDecimal("1.2"), Goal.GAIN, 0);
+                new BigDecimal("1.2"), Goal.GAIN, 0, null, null);
         assertThat(invalidFields(r)).containsExactly("dailyTargetKcal");
     }
 

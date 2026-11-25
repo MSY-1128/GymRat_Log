@@ -1,0 +1,164 @@
+/* 기간 선택(4주·12주·1년·전체) */
+.ranges {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.range {
+  position: relative;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.range input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.range:has(input:checked) {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.range:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.cardHint {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.caption {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* 변화 요약 */
+.changes {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.changes div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.changes dt {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.changes dd {
+  margin: 0;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.delta {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.changeMeta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.changeNone {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.chart {
+  width: 100%;
+  height: 300px;
+}
+
+/* 측정 기록 표 */
+/* position: 숨김 텍스트(.srOnly)가 스크롤 영역 밖으로 빠져 페이지 가로폭을 늘리지 않게 */
+.tableWrap {
+  position: relative;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  min-width: 760px;
+}
+
+.table th,
+.table td {
+  padding: 10px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table thead th {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.table th:first-child {
+  text-align: left;
+}
+
+.table tr[aria-current='true'] {
+  background: var(--primary-soft);
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.sync {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.sync p {
+  margin: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

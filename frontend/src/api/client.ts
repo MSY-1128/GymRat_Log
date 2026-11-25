@@ -1,5 +1,7 @@
 import type {
   ApiErrorBody,
+  BodyComposition,
+  BodyCompositionInput,
   Credentials,
   User,
   DailySummary,
@@ -152,4 +154,12 @@ export const api = {
 
   getSummary: (date: string) => request<DailySummary>('/summary' + q({ date })),
   getStats: (from: string, to: string) => request<DailySummary[]>('/stats' + q({ from, to })),
+
+  getBodyCompositions: (from: string, to: string) =>
+    request<BodyComposition[]>('/body-compositions' + q({ from, to })),
+  createBodyComposition: (input: BodyCompositionInput) =>
+    request<BodyComposition>('/body-compositions', json('POST', input)),
+  updateBodyComposition: (id: number, input: BodyCompositionInput) =>
+    request<BodyComposition>(`/body-compositions/${id}`, json('PUT', input)),
+  deleteBodyComposition: (id: number) => request<null>(`/body-compositions/${id}`, { method: 'DELETE' }),
 };

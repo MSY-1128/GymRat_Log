@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { useMeals, useProfile, useSummary, useWorkouts } from '../api/hooks';
-import { mealTypeLabel, type DailySummary } from '../api/types';
+import { bmrMethodLabel, mealTypeLabel, type DailySummary } from '../api/types';
 import { DateNav } from '../components/DateNav';
 import { Icon } from '../components/Icon';
 import { Empty, ErrorState, Loading } from '../components/QueryState';
@@ -107,6 +107,9 @@ export function TodayPage() {
               <span className={styles.cardHint}>칼로리 비중</span>
             </h2>
             <Macros summary={summary.data} />
+            {profile.data?.proteinTargetG != null && (
+              <ProteinGoal eaten={summary.data.proteinG} target={profile.data.proteinTargetG} />
+            )}
           </section>
 
           {profile.isSuccess && (
@@ -124,7 +127,7 @@ export function TodayPage() {
               ) : (
                 <dl className={styles.kv}>
                   <div>
-                    <dt>BMR · 기초대사량</dt>
+                    <dt>BMR · {bmrMethodLabel(profile.data.bmrAppliedMethod ?? 'FORMULA')}</dt>
                     <dd>
                       {formatKcal(profile.data.bmrKcal)} <span>kcal</span>
                     </dd>
@@ -256,6 +259,33 @@ function Ring({ consumed, target }: { consumed: number; target: number | null })
       <span className={styles.ringCenter} aria-hidden="true">
         {target ? `${Math.round(ratio * 100)}%` : <Icon name="bolt" size={26} />}
       </span>
+    </div>
+  );
+}
+
+/** 단백질 목표(제지방량 기준) 대비 섭취. 수치를 글자로 함께 보여 준다. */
+function ProteinGoal({ eaten, target }: { eaten: number; target: number }) {
+  const ratio = target > 0 ? eaten / target : 0;
+  const left = target - eaten;
+  return (
+    <div className={styles.goal}>
+      <div className={styles.goalHead}>
+        <span>단백질 목표</span>
+        <span data-testid="protein-progress">
+          <strong>{formatKcal(eaten)}</strong> / {formatKcal(target)} g
+        </span>
+      </div>
+      <div
+        className={styles.goalTrack}
+        role="meter"
+        aria-label="단백질 목표 대비 섭취"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(target)}
+        aria-valuenow={Math.round(eaten)}
+      >
+        <span className={styles.goalFill} style={{ width: `${Math.min(100, ratio * 100)}%` }} />
+      </div>
+      <p className={styles.goalNote}>{left > 0 ? `${formatKcal(left)} g 더 먹으면 목표예요` : '목표를 채웠어요'}</p>
     </div>
   );
 }
