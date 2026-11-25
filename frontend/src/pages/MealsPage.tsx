@@ -21,9 +21,24 @@ export function MealsPage() {
   const summary = useSummary(date);
   const del = useDeleteMeal();
   const [editing, setEditing] = useState<MealEntry | null>(null);
+  const [mealType, setMealType] = useState<MealType>(defaultMealType);
   const [status, setStatus] = useState('');
+  const formRef = useRef<HTMLElement>(null);
 
   useEffect(() => setEditing(null), [date]);
+
+  const startEdit = (m: MealEntry) => {
+    setEditing(m);
+    setMealType(m.mealType);
+  };
+
+  /** 기록 목록의 끼니별 '추가' → 폼의 식사 구분을 맞추고 폼으로 이동 */
+  const addTo = (type: MealType) => {
+    setEditing(null);
+    setMealType(type);
+    formRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    formRef.current?.querySelector<HTMLInputElement>(`input[value="${type}"]`)?.focus({ preventScroll: true });
+  };
 
   const remove = (m: MealEntry) => {
     if (!window.confirm(`'${m.foodNameSnapshot}' 기록을 삭제할까요?`)) return;
@@ -48,7 +63,7 @@ export function MealsPage() {
 
       <div className={ui.grid2}>
         <div className={ui.page}>
-          <section className={ui.card} aria-labelledby="meal-form-title">
+          <section ref={formRef} className={`${ui.card} ${styles.formCard}`} aria-labelledby="meal-form-title">
             <h2 id="meal-form-title" className={ui.cardTitle}>
               {editing ? '식단 수정' : '식단 추가'}
             </h2>
@@ -56,6 +71,8 @@ export function MealsPage() {
               key={editing?.id ?? 'new'}
               date={date}
               editing={editing}
+              mealType={mealType}
+              onMealTypeChange={setMealType}
               onDone={(msg) => {
                 setEditing(null);
                 setStatus(msg);
@@ -87,12 +104,22 @@ export function MealsPage() {
             <div className={styles.groups}>
               {MEAL_TYPES.map(({ value, label }) => {
                 const items = meals.data.filter((m) => m.mealType === value);
-                if (!items.length) return null;
+                const kcal = items.reduce((sum, m) => sum + m.calculatedKcal, 0);
                 return (
-                  <div key={value}>
-                    <h3 className={styles.groupTitle}>
-                      {label}
-                    </h3>
+                  <div key={value} className={styles.group} data-testid={`meal-group-${value}`}>
+                    <div className={styles.groupHead}>
+                      <h3 className={styles.groupTitle}>{label}</h3>
+                      <span className={styles.groupKcal}>{items.length ? `${formatKcal(kcal)} kcal` : '기록 없음'}</span>
+                      <button
+                        type="button"
+                        className={`${ui.secondary} ${ui.small}`}
+                        onClick={() => addTo(value)}
+                        aria-label={`${label} 식단 추가하기`}
+                      >
+                        + 추가
+                      </button>
+                    </div>
+                    {items.length > 0 && (
                     <ul className={ui.list}>
                       {items.map((m) => (
                         <li key={m.id} className={ui.item}>
@@ -109,7 +136,7 @@ export function MealsPage() {
                               <button
                                 type="button"
                                 className={`${ui.secondary} ${ui.small}`}
-                                onClick={() => setEditing(m)}
+                                onClick={() => startEdit(m)}
                                 aria-label={`${m.foodNameSnapshot} 기록 수정`}
                               >
                                 수정
@@ -128,6 +155,7 @@ export function MealsPage() {
                         </li>
                       ))}
                     </ul>
+                    )}
                   </div>
                 );
               })}
@@ -148,6 +176,8 @@ export function MealsPage() {
 interface MealFormProps {
   date: string;
   editing: MealEntry | null;
+  mealType: MealType;
+  onMealTypeChange: (type: MealType) => void;
   onDone: (message: string) => void;
   onCancel: () => void;
 }
@@ -160,12 +190,11 @@ function defaultMealType(): MealType {
   return 'SNACK';
 }
 
-function MealForm({ date, editing, onDone, onCancel }: MealFormProps) {
+function MealForm({ date, editing, mealType, onMealTypeChange, onDone, onCancel }: MealFormProps) {
   const save = useSaveMeal();
   const [food, setFood] = useState<PickedFood | null>(
     editing ? { id: editing.foodId, name: editing.foodNameSnapshot, servingGrams: null } : null,
   );
-  const [mealType, setMealType] = useState<MealType>(editing?.mealType ?? defaultMealType());
   const [amount, setAmount] = useState(editing ? String(editing.grams) : '100');
   const [unit, setUnit] = useState<Unit>('g');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -216,6 +245,23 @@ function MealForm({ date, editing, onDone, onCancel }: MealFormProps) {
   return (
     <>
     <form className={ui.form} onSubmit={submit} noValidate aria-label={editing ? '식단 수정' : '식단 추가'}>
+      <fieldset className={styles.mealTypes}>
+        <legend className={styles.mealTypesLabel}>식사 구분</legend>
+        <div className={styles.segments}>
+          {MEAL_TYPES.map((m) => (
+            <label key={m.value} className={styles.segment}>
+              <input
+                type="radio"
+                name={mealTypeId}
+                value={m.value}
+                checked={mealType === m.value}
+                onChange={() => onMealTypeChange(m.value)}
+              />
+              {m.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div ref={firstRef}>
         <FoodPicker
           selected={food}
@@ -225,21 +271,6 @@ function MealForm({ date, editing, onDone, onCancel }: MealFormProps) {
           }}
           error={errors.foodId}
         />
-      </div>
-      <div className={ui.field}>
-        <label htmlFor={mealTypeId}>식사 구분</label>
-        <select
-          id={mealTypeId}
-          className={ui.input}
-          value={mealType}
-          onChange={(e) => setMealType(e.target.value as MealType)}
-        >
-          {MEAL_TYPES.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
       </div>
       <div className={ui.row}>
         <Field

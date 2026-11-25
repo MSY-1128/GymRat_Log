@@ -54,7 +54,9 @@ describe('MealsPage', () => {
     expect(await screen.findByTestId('meal-total')).toHaveTextContent('합계 0 kcal');
 
     await user.click(await screen.findByRole('radio', { name: /닭가슴살/ }));
-    await user.selectOptions(screen.getByLabelText('식사 구분'), 'DINNER');
+    const mealTypes = screen.getByRole('group', { name: '식사 구분' });
+    await user.click(within(mealTypes).getByRole('radio', { name: '저녁' }));
+    expect(within(mealTypes).getByRole('radio', { name: '저녁' })).toBeChecked();
     const grams = screen.getByLabelText('섭취량 (g)');
     await user.clear(grams);
     await user.type(grams, '150');
@@ -118,6 +120,34 @@ describe('MealsPage', () => {
     await user.click(screen.getByRole('button', { name: '식단 추가' }));
     expect(await screen.findByText('5000 이하여야 합니다.')).toBeInTheDocument();
     expect(screen.getByLabelText('섭취량 (g)')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('groups records by meal and adds to a meal from its group', async () => {
+    const { state } = createFakeServer();
+    state.meals.push({
+      id: 7, date: DAY, mealType: 'SNACK', foodId: 1, grams: 100, foodNameSnapshot: '현미밥',
+      kcalPer100Snapshot: 150, carbsPer100Snapshot: 32, proteinPer100Snapshot: 3, fatPer100Snapshot: 1,
+      calculatedKcal: 150, carbsG: 32, proteinG: 3, fatG: 1,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<App />, `/meals?date=${DAY}`);
+
+    // 네 끼니가 모두 보이고, 기록이 있는 끼니엔 소계가 붙는다
+    expect(await screen.findByTestId('meal-group-SNACK')).toHaveTextContent('150 kcal');
+    expect(screen.getByTestId('meal-group-BREAKFAST')).toHaveTextContent('기록 없음');
+
+    await user.click(screen.getByRole('button', { name: '아침 식단 추가하기' }));
+    const mealTypes = screen.getByRole('group', { name: '식사 구분' });
+    expect(within(mealTypes).getByRole('radio', { name: '아침' })).toBeChecked();
+
+    await user.click(screen.getByRole('radio', { name: /닭가슴살/ }));
+    await user.click(screen.getByRole('button', { name: '식단 추가' }));
+    await waitFor(() =>
+      expect(state.calls.find((c) => c.method === 'POST' && c.path === '/meals')?.body).toMatchObject({
+        mealType: 'BREAKFAST',
+      }),
+    );
+    expect(await within(screen.getByTestId('meal-group-BREAKFAST')).findByText('닭가슴살')).toBeInTheDocument();
   });
 
   it('deletes a meal after confirmation and refreshes', async () => {

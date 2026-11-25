@@ -37,3 +37,97 @@
   display: grid;
   gap: 14px;
 }
+
+/* 끼니별 '+ 추가'로 이동할 때 상단 고정 헤더에 제목이 가리지 않게 */
+.formCard {
+  scroll-margin-top: 100px;
+}
+
+/* 식사 구분: 아침·점심·저녁·간식 4칸 세그먼트 */
+.mealTypes {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.mealTypesLabel {
+  padding: 0;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.segments {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.segment {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.segment:hover {
+  color: var(--text);
+}
+
+.segment input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment:has(input:checked) {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.segment:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 기록 목록의 끼니별 묶음 */
+.group {
+  display: grid;
+  gap: 8px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.groupHead .groupTitle {
+  margin: 0;
+  color: var(--text);
+}
+
+.groupKcal {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
