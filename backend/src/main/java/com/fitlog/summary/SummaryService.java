@@ -76,12 +76,13 @@ public class SummaryService {
             fat = fat.add(m.calculatedFatG());
         }
         BigDecimal exerciseKcal = BigDecimal.ZERO;
-        int minutes = 0;
+        BigDecimal minutes = BigDecimal.ZERO;
         for (ExerciseEntry e : workouts) {
             exerciseKcal = exerciseKcal.add(e.calculatedKcal());
-            minutes += e.getMinutes();
+            // 헬스는 세트 수로 추정한 시간(2.5분 단위)이라 합계를 정수 분으로 반올림한다
+            minutes = minutes.add(e.durationMinutes());
         }
-        return new DailySummary(date, kcal, target, Calculator.remaining(target, kcal), exerciseKcal, minutes,
-                carbs, protein, fat);
+        return new DailySummary(date, kcal, target, Calculator.remaining(target, kcal), exerciseKcal,
+                minutes.setScale(0, java.math.RoundingMode.HALF_UP).intValue(), carbs, protein, fat);
     }
 }

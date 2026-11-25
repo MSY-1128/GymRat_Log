@@ -75,10 +75,34 @@ public final class Calculator {
         return per100g.multiply(grams).divide(HUNDRED);
     }
 
+    /**
+     * 헬스 1세트에 드는 시간(세트 수행 약 40~60초 + 휴식 1.5~2분)을 2.5분으로 본다.
+     * 들어 올린 무게로 칼로리를 직접 구하는 검증된 식은 없어서, 세트 수로 운동 시간을 추정해 MET로 계산한다.
+     */
+    public static final BigDecimal MINUTES_PER_SET = new BigDecimal("2.5");
+
     /** 운동 kcal = MET × 3.5 × 체중kg / 200 × 분. 휴식 대사를 포함한 총 소모 추정치. */
     public static BigDecimal exerciseKcal(BigDecimal met, BigDecimal weightKg, int minutes) {
-        return met.multiply(OXYGEN_ML).multiply(weightKg).divide(TWO_HUNDRED)
-                .multiply(BigDecimal.valueOf(minutes));
+        return exerciseKcal(met, weightKg, BigDecimal.valueOf(minutes));
+    }
+
+    public static BigDecimal exerciseKcal(BigDecimal met, BigDecimal weightKg, BigDecimal minutes) {
+        return met.multiply(OXYGEN_ML).multiply(weightKg).divide(TWO_HUNDRED).multiply(minutes);
+    }
+
+    /** 헬스 추정 시간 = 세트 수 × 2.5분. */
+    public static BigDecimal strengthMinutes(int sets) {
+        return MINUTES_PER_SET.multiply(BigDecimal.valueOf(sets));
+    }
+
+    /** 거리 기반 kcal = 거리 계수(kcal/kg/km) × 체중kg × km. 달리기는 속도와 거의 무관하게 약 1kcal/kg/km. */
+    public static BigDecimal distanceKcal(BigDecimal kcalPerKgKm, BigDecimal weightKg, BigDecimal km) {
+        return kcalPerKgKm.multiply(weightKg).multiply(km);
+    }
+
+    /** 볼륨 = 세트 × 횟수 × 무게kg. */
+    public static BigDecimal volume(int sets, int reps, BigDecimal liftedKg) {
+        return liftedKg.multiply(BigDecimal.valueOf((long) sets * reps));
     }
 
     /** 남은 칼로리 = 목표 − 섭취. 목표가 없으면 null. 음수도 그대로 반환. */

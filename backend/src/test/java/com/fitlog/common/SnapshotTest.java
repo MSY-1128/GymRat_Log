@@ -7,6 +7,7 @@ import com.fitlog.food.Food;
 import com.fitlog.meal.MealEntry;
 import com.fitlog.meal.MealType;
 import com.fitlog.workout.ExerciseEntry;
+import com.fitlog.workout.WorkoutDetail;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
@@ -60,7 +61,7 @@ class SnapshotTest {
         ExerciseEntry entry = new ExerciseEntry(1L, DAY, exercise(1, "달리기", "8"), 30, new BigDecimal("70"));
         assertThat(entry.calculatedKcal()).isEqualByComparingTo("294");
 
-        entry.update(DAY, exercise(1, "달리기", "12"), 60);
+        entry.update(DAY, exercise(1, "달리기", "12"), WorkoutDetail.time(60));
 
         assertThat(entry.getWeightKgSnapshot()).isEqualByComparingTo("70");
         assertThat(entry.getMetSnapshot()).isEqualByComparingTo("8");
@@ -70,7 +71,7 @@ class SnapshotTest {
     @Test
     void workoutAppliesNewMetOnlyWhenExerciseChangesAndKeepsWeight() {
         ExerciseEntry entry = new ExerciseEntry(1L, DAY, exercise(1, "달리기", "8"), 30, new BigDecimal("70"));
-        entry.update(DAY, exercise(3, "자전거", "6"), 30);
+        entry.update(DAY, exercise(3, "자전거", "6"), WorkoutDetail.time(30));
         assertThat(entry.getNameSnapshot()).isEqualTo("자전거");
         assertThat(entry.getMetSnapshot()).isEqualByComparingTo("6");
         assertThat(entry.getWeightKgSnapshot()).isEqualByComparingTo("70");

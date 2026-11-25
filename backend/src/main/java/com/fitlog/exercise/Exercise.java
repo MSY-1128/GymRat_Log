@@ -26,7 +26,37 @@ public class Exercise extends BaseEntity {
     @Column(name = "sample_id")
     private Long sampleId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private ExerciseKind kind = ExerciseKind.TIME;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "body_part", length = 10)
+    private BodyPart bodyPart;
+
+    @Column(name = "kcal_per_kg_km")
+    private BigDecimal kcalPerKgKm;
+
+    @Column(name = "sort_order", nullable = false)
+    private int sortOrder = 1000;
+
     protected Exercise() {
+    }
+
+    public ExerciseKind getKind() {
+        return kind;
+    }
+
+    public BodyPart getBodyPart() {
+        return bodyPart;
+    }
+
+    public BigDecimal getKcalPerKgKm() {
+        return kcalPerKgKm;
+    }
+
+    public boolean distanceCapable() {
+        return kcalPerKgKm != null;
     }
 
     public Exercise(String name, BigDecimal met, Source source, Long sampleId) {

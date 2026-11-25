@@ -1,0 +1,39 @@
+.map {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 12px 8px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.view {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.svg {
+  width: 88px;
+  height: 167px;
+}
+
+.base {
+  fill: var(--surface-3);
+  stroke: var(--border-strong);
+  stroke-width: 0.8;
+}
+
+.on {
+  fill: var(--accent-strong);
+  stroke: var(--accent-ink);
+  stroke-width: 1;
+}
+
+.caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}

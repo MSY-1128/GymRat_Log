@@ -3,7 +3,7 @@
 export type SexForFormula = 'MALE' | 'FEMALE';
 export type Goal = 'LOSE' | 'MAINTAIN' | 'GAIN';
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
-export type Source = 'DEMO' | 'USER' | 'MFDS';
+export type Source = 'DEMO' | 'USER' | 'MFDS' | 'CATALOG';
 export type MfdsKind = 'GENERIC' | 'BRAND' | 'ALL';
 /** 기초대사량 계산 방식: 키·몸무게 공식 / 체지방률(제지방량) 공식 / 측정기 값 */
 export type BmrMethod = 'FORMULA' | 'BODY_FAT' | 'MEASURED';
@@ -137,12 +137,32 @@ export interface Page<T> {
   totalElements: number;
 }
 
+/** STRENGTH: 헬스(세트·횟수·무게), TIME: 시간(거리 계수가 있으면 거리도) */
+export type ExerciseKind = 'STRENGTH' | 'TIME';
+export type BodyPart = 'CHEST' | 'BACK' | 'SHOULDER' | 'LEGS' | 'ARMS' | 'CORE';
+export type WorkoutMode = 'TIME' | 'DISTANCE' | 'SETS';
+
 export interface Exercise {
   id: number;
   name: string;
   met: number;
   source: Source;
+  kind: ExerciseKind;
+  bodyPart: BodyPart | null;
+  /** 거리로 기록할 수 있는 운동만 값이 있다(kcal = 계수 × 체중 × km) */
+  kcalPerKgKm: number | null;
 }
+
+export const BODY_PARTS: { value: BodyPart; label: string }[] = [
+  { value: 'CHEST', label: '가슴' },
+  { value: 'BACK', label: '등' },
+  { value: 'SHOULDER', label: '어깨' },
+  { value: 'LEGS', label: '하체' },
+  { value: 'ARMS', label: '팔' },
+  { value: 'CORE', label: '복근' },
+];
+
+export const bodyPartLabel = (p: BodyPart): string => BODY_PARTS.find((b) => b.value === p)?.label ?? p;
 
 export interface MealEntry {
   id: number;
@@ -172,18 +192,38 @@ export interface WorkoutEntry {
   id: number;
   date: string;
   exerciseId: number;
-  minutes: number;
+  mode: WorkoutMode;
+  minutes: number | null;
+  distanceKm: number | null;
+  sets: number | null;
+  reps: number | null;
+  liftedKg: number | null;
+  /** 헬스 볼륨(세트 × 횟수 × 무게) */
+  volumeKg: number | null;
+  /** 운동 시간(헬스는 세트 × 2.5분 추정) */
+  durationMinutes: number;
+  bodyPart: BodyPart | null;
   nameSnapshot: string;
   weightKgSnapshot: number;
   metSnapshot: number;
+  kcalPerKgKmSnapshot: number | null;
   calculatedKcal: number;
 }
 
+/** mode별로 필요한 값만 보낸다. TIME: minutes / DISTANCE: distanceKm(+minutes) / SETS: sets·reps·liftedKg */
 export interface WorkoutInput {
   date: string;
   exerciseId: number;
-  minutes: number;
+  mode: WorkoutMode;
+  minutes?: number | null;
+  distanceKm?: number | null;
+  sets?: number | null;
+  reps?: number | null;
+  liftedKg?: number | null;
 }
+
+/** 헬스 1세트(수행 + 휴식) 추정 시간. 서버 Calculator.MINUTES_PER_SET과 같다. */
+export const MINUTES_PER_SET = 2.5;
 
 export interface DailySummary {
   date: string;

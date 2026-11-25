@@ -85,7 +85,8 @@ public class DemoSeeder implements ApplicationRunner {
             log.info("Demo seed already handled; skipping.");
             return;
         }
-        if (foods.count() > 0 || exercises.count() > 0 || meals.count() > 0 || workouts.count() > 0) {
+        // 운동 종목은 마이그레이션이 카탈로그로 넣어 두므로 '비어 있음' 판단에서 뺀다
+        if (foods.count() > 0 || meals.count() > 0 || workouts.count() > 0) {
             jdbc.update("UPDATE seed_history SET status = 'SKIPPED_NOT_EMPTY' WHERE seed_key = ?", SEED_KEY);
             log.info("Database is not empty; demo seed skipped.");
             return;
@@ -99,7 +100,9 @@ public class DemoSeeder implements ApplicationRunner {
         }
         Map<Long, Exercise> exerciseBySample = new HashMap<>();
         for (SeedExercise e : nullSafe(seed.exercises())) {
-            Exercise saved = exercises.save(new Exercise(e.name(), e.met(), Source.DEMO, e.id()));
+            // 같은 이름의 카탈로그 종목이 있으면 그것을 쓴다(중복 생성 안 함)
+            Exercise saved = exercises.findFirstByNameOrderByIdAsc(e.name())
+                    .orElseGet(() -> exercises.save(new Exercise(e.name(), e.met(), Source.DEMO, e.id())));
             exerciseBySample.put(e.id(), saved);
         }
         for (SeedMeal m : nullSafe(seed.mealEntries())) {

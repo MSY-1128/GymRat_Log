@@ -37,7 +37,13 @@ export function createFakeServer() {
     external: [] as ExternalFood[],
     /** 바코드 조회 결과(서버 응답 형태) */
     barcodes: {} as Record<string, BarcodeLookup>,
-    exercises: [{ id: 1, name: '달리기', met: 8, source: 'DEMO' }] as Exercise[],
+    exercises: [
+      { id: 1, name: '달리기', met: 8, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: 1 },
+      { id: 2, name: '테니스', met: 7.3, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: null },
+      { id: 3, name: '벤치프레스', met: 5, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null },
+      { id: 4, name: '푸시업', met: 3.8, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null },
+      { id: 5, name: '스쿼트', met: 6, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'LEGS', kcalPerKgKm: null },
+    ] as Exercise[],
     meals: [] as MealEntry[],
     workouts: [] as WorkoutEntry[],
     /** 체성분 기록(서버 응답 형태: 체지방량·제지방량 포함) */
@@ -59,7 +65,7 @@ export function createFakeServer() {
       targetKcal: target,
       remainingKcal: target == null ? null : target - consumed,
       exerciseKcal: ws.reduce((a, w) => a + w.calculatedKcal, 0),
-      exerciseMinutes: ws.reduce((a, w) => a + w.minutes, 0),
+      exerciseMinutes: Math.round(ws.reduce((a, w) => a + w.durationMinutes, 0)),
       carbsG: meals.reduce((a, m) => a + m.carbsG, 0),
       proteinG: meals.reduce((a, m) => a + m.proteinG, 0),
       fatG: meals.reduce((a, m) => a + m.fatG, 0),
@@ -223,9 +229,42 @@ export function createFakeServer() {
       state.meals = state.meals.filter((m) => m.id !== Number(delMeal[1]));
       return json(204, null);
     }
-    if (method === 'POST' && path === '/workouts') {
+    const workoutId = /^\/workouts\/(\d+)$/.exec(path);
+    if ((method === 'POST' && path === '/workouts') || (method === 'PUT' && workoutId)) {
       if (!state.profile)
         return json(409, { code: 'PROFILE_REQUIRED', message: '운동 기록 전에 설정에서 프로필(체중)을 저장해 주세요.' });
+      const ex = state.exercises.find((x) => x.id === body.exerciseId);
+      if (!ex) return json(404, { code: 'NOT_FOUND', message: '운동을(를) 찾을 수 없습니다.', fieldErrors: {} });
+      const prev = workoutId ? state.workouts.find((w) => w.id === Number(workoutId[1])) : undefined;
+      const bw = prev?.weightKgSnapshot ?? state.profile.weightKg;
+      const mode = body.mode ?? 'TIME';
+      const perMin = (ex.met * 3.5 * bw) / 200;
+      const duration = mode === 'SETS' ? body.sets * 2.5 : mode === 'TIME' ? body.minutes : (body.minutes ?? 0);
+      const entry: WorkoutEntry = {
+        id: prev?.id ?? state.nextId++,
+        date: body.date,
+        exerciseId: ex.id,
+        mode,
+        minutes: mode === 'SETS' ? null : (body.minutes ?? null),
+        distanceKm: mode === 'DISTANCE' ? body.distanceKm : null,
+        sets: mode === 'SETS' ? body.sets : null,
+        reps: mode === 'SETS' ? body.reps : null,
+        liftedKg: mode === 'SETS' ? body.liftedKg : null,
+        volumeKg: mode === 'SETS' ? body.sets * body.reps * body.liftedKg : null,
+        durationMinutes: duration,
+        bodyPart: ex.bodyPart,
+        nameSnapshot: ex.name,
+        weightKgSnapshot: bw,
+        metSnapshot: ex.met,
+        kcalPerKgKmSnapshot: ex.kcalPerKgKm,
+        calculatedKcal: mode === 'DISTANCE' ? ex.kcalPerKgKm! * bw * body.distanceKm : perMin * duration,
+      };
+      state.workouts = [...state.workouts.filter((w) => w.id !== entry.id), entry];
+      return json(workoutId ? 200 : 201, entry);
+    }
+    if (method === 'DELETE' && workoutId) {
+      state.workouts = state.workouts.filter((w) => w.id !== Number(workoutId[1]));
+      return json(204, null);
     }
     if (method === 'PUT' && path === '/profile') {
       state.profile = { id: 1, ...body, updatedAt: new Date().toISOString() } as Profile;

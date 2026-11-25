@@ -16,7 +16,7 @@ public class ExerciseService {
 
     @Transactional(readOnly = true)
     public List<ExerciseResponse> list() {
-        return repository.findAllByOrderByNameAscIdAsc().stream().map(ExerciseResponse::from).toList();
+        return repository.findAllByOrderBySortOrderAscNameAscIdAsc().stream().map(ExerciseResponse::from).toList();
     }
 
     @Transactional(readOnly = true)

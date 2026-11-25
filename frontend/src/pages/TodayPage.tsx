@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon';
 import { Empty, ErrorState, Loading } from '../components/QueryState';
 import { formatAmount, formatGram, formatKcal } from '../lib/format';
 import { useSelectedDate } from '../lib/useSelectedDate';
+import { workoutDetail } from '../lib/workout';
 import ui from '../styles/ui.module.css';
 import styles from './TodayPage.module.css';
 
@@ -200,7 +201,7 @@ export function TodayPage() {
                 <li key={w.id} className={ui.item}>
                   <div className={ui.itemMain}>
                     <div className={ui.itemName}>{w.nameSnapshot}</div>
-                    <div className={ui.itemMeta}>{w.minutes}분</div>
+                    <div className={ui.itemMeta}>{workoutDetail(w)}</div>
                   </div>
                   <span className={ui.itemKcal}>{formatKcal(w.calculatedKcal)} kcal</span>
                 </li>
