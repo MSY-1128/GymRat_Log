@@ -38,11 +38,11 @@ export function createFakeServer() {
     /** 바코드 조회 결과(서버 응답 형태) */
     barcodes: {} as Record<string, BarcodeLookup>,
     exercises: [
-      { id: 1, name: '달리기', met: 8, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: 1 },
-      { id: 2, name: '테니스', met: 7.3, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: null },
-      { id: 3, name: '벤치프레스', met: 5, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null },
-      { id: 4, name: '푸시업', met: 3.8, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null },
-      { id: 5, name: '스쿼트', met: 6, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'LEGS', kcalPerKgKm: null },
+      { id: 1, name: '달리기', met: 8, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: 1, equipment: null, primaryMuscles: [], secondaryMuscles: [] },
+      { id: 2, name: '테니스', met: 7.3, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: null, equipment: null, primaryMuscles: [], secondaryMuscles: [] },
+      { id: 3, name: '벤치프레스', met: 5, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null, equipment: 'BARBELL', primaryMuscles: ['CHEST'], secondaryMuscles: ['FRONT_DELT', 'TRICEPS'] },
+      { id: 4, name: '푸시업', met: 3.8, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null, equipment: 'BODYWEIGHT', primaryMuscles: ['CHEST'], secondaryMuscles: ['FRONT_DELT', 'TRICEPS', 'ABS'] },
+      { id: 5, name: '스쿼트', met: 6, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'LEGS', kcalPerKgKm: null, equipment: 'BARBELL', primaryMuscles: ['QUADS', 'GLUTES'], secondaryMuscles: ['ADDUCTORS', 'HAMSTRINGS'] },
     ] as Exercise[],
     meals: [] as MealEntry[],
     workouts: [] as WorkoutEntry[],

@@ -4,13 +4,16 @@ import { ApiError } from '../api/client';
 import { useDeleteWorkout, useExercises, useProfile, useSaveWorkout, useSummary, useWorkouts } from '../api/hooks';
 import {
   BODY_PARTS,
+  EQUIPMENT,
   MINUTES_PER_SET,
+  equipmentLabel,
   type BodyPart,
+  type Equipment,
   type Exercise,
   type WorkoutEntry,
   type WorkoutInput,
 } from '../api/types';
-import { BodyMap } from '../components/BodyMap';
+import { MuscleMap } from '../components/MuscleMap';
 import { DateNav } from '../components/DateNav';
 import { Field } from '../components/Field';
 import { Empty, ErrorState, Loading, errorMessage } from '../components/QueryState';
@@ -190,6 +193,7 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
   );
   const [part, setPart] = useState<BodyPart>(editing?.bodyPart ?? 'CHEST');
   const [gymId, setGymId] = useState<number | null>(editingIsGym ? editing!.exerciseId : null);
+  const [equip, setEquip] = useState<Equipment | 'ALL'>('ALL');
   const [sets, setSets] = useState(editing?.sets != null ? String(editing.sets) : '3');
   const [reps, setReps] = useState(editing?.reps != null ? String(editing.reps) : '10');
   const [lifted, setLifted] = useState(editing?.liftedKg != null ? String(editing.liftedKg) : '');
@@ -201,9 +205,15 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
 
   const isGym = sport === 'GYM';
   const sportExercise = isGym ? null : (others.find((x) => x.id === sport) ?? null);
-  const partExercises = gym.filter((x) => x.bodyPart === part);
-  // 부위를 바꾸면 그 부위의 첫 종목이 선택된 상태로 시작한다
-  const gymExercise = gym.find((x) => x.id === gymId && x.bodyPart === part) ?? partExercises[0] ?? null;
+  const inPart = gym.filter((x) => x.bodyPart === part);
+  const partEquipment = EQUIPMENT.filter((e) => inPart.some((x) => x.equipment === e.value));
+  const partExercises = equip === 'ALL' ? inPart : inPart.filter((x) => x.equipment === equip);
+  // 부위나 도구를 바꾸면 목록의 첫 종목이 선택된 상태로 시작한다
+  const gymExercise = partExercises.find((x) => x.id === gymId) ?? partExercises[0] ?? null;
+  const choosePart = (p: BodyPart) => {
+    setPart(p);
+    setEquip('ALL');
+  };
   const canDistance = sportExercise?.kcalPerKgKm != null;
   const effectiveMode = isGym ? 'SETS' : canDistance ? mode : 'TIME';
 
@@ -292,7 +302,7 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
             <div className={styles.parts}>
               {BODY_PARTS.map((p) => (
                 <label key={p.value} className={styles.part}>
-                  <input type="radio" name={name + '-part'} checked={part === p.value} onChange={() => setPart(p.value)} />
+                  <input type="radio" name={name + '-part'} checked={part === p.value} onChange={() => choosePart(p.value)} />
                   {p.label}
                 </label>
               ))}
@@ -300,9 +310,29 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
           </fieldset>
 
           <div className={styles.gymPick}>
-            <BodyMap part={part} />
-            <fieldset className={styles.group}>
-              <legend className={styles.legend}>운동</legend>
+            <div className={styles.figure}>
+              {gymExercise && (
+                <MuscleMap
+                  name={gymExercise.name}
+                  primary={gymExercise.primaryMuscles}
+                  secondary={gymExercise.secondaryMuscles}
+                />
+              )}
+            </div>
+            <fieldset className={`${styles.group} ${styles.picker}`}>
+              <legend className={styles.legend}>
+                운동 <span className={styles.count}>{partExercises.length}개</span>
+              </legend>
+              {partEquipment.length > 1 && (
+                <div className={styles.equipments} role="radiogroup" aria-label="도구">
+                  {[{ value: 'ALL' as const, label: '전체' }, ...partEquipment].map((e) => (
+                    <label key={e.value} className={styles.equipment}>
+                      <input type="radio" name={name + '-equip'} checked={equip === e.value} onChange={() => setEquip(e.value)} />
+                      {e.label}
+                    </label>
+                  ))}
+                </div>
+              )}
               {partExercises.length === 0 ? (
                 <p className={ui.hint}>이 부위의 운동이 없어요.</p>
               ) : (
@@ -311,7 +341,9 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
                     <label key={x.id} className={styles.exercise}>
                       <input type="radio" name={name + '-gym'} checked={gymExercise?.id === x.id} onChange={() => setGymId(x.id)} />
                       <span>{x.name}</span>
-                      <span className={styles.met}>MET {formatAmount(x.met)}</span>
+                      <span className={styles.met}>
+                        {x.equipment ? `${equipmentLabel(x.equipment)} · ` : ''}MET {formatAmount(x.met)}
+                      </span>
                     </label>
                   ))}
                 </div>

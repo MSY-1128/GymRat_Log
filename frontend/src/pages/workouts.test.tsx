@@ -29,13 +29,24 @@ describe('운동 기록', () => {
     const form = await screen.findByRole('form', { name: '운동 추가' });
 
     await user.click(within(form).getByRole('radio', { name: '헬스' }));
-    // 기본 부위는 가슴이고 그 부위 첫 종목이 선택된다
-    expect(within(form).getByRole('img', { name: /가슴 부위/ })).toBeInTheDocument();
+    // 기본 부위는 가슴이고 그 부위 첫 종목이 선택되며, 근육 그림이 그 종목의 근육을 보여 준다
     expect(within(form).getByRole('radio', { name: /벤치프레스/ })).toBeChecked();
+    expect(
+      within(form).getByRole('img', { name: '벤치프레스 근육 그림. 주 근육: 대흉근, 보조 근육: 전면 삼각근, 삼두근' }),
+    ).toBeInTheDocument();
+
+    // 도구로 거르면 그 도구의 종목만 남고 첫 종목이 선택된다
+    const tools = within(form).getByRole('radiogroup', { name: '도구' });
+    await user.click(within(tools).getByRole('radio', { name: '맨몸' }));
+    expect(within(form).queryByRole('radio', { name: /벤치프레스/ })).not.toBeInTheDocument();
+    expect(within(form).getByRole('radio', { name: /푸시업/ })).toBeChecked();
+    expect(within(form).getByRole('img', { name: /^푸시업 근육 그림/ })).toBeInTheDocument();
 
     await user.click(within(form).getByRole('radio', { name: '하체' }));
-    expect(within(form).getByRole('img', { name: /하체 부위/ })).toBeInTheDocument();
     expect(within(form).getByRole('radio', { name: /스쿼트/ })).toBeChecked();
+    expect(within(form).getByRole('img', { name: /스쿼트 근육 그림. 주 근육: 대퇴사두근, 둔근/ })).toBeInTheDocument();
+    // 하체는 도구가 하나뿐이라 필터를 보여 주지 않는다
+    expect(within(form).queryByRole('radiogroup', { name: '도구' })).not.toBeInTheDocument();
     expect(within(form).queryByRole('radio', { name: /벤치프레스/ })).not.toBeInTheDocument();
 
     await user.clear(within(form).getByLabelText('세트'));

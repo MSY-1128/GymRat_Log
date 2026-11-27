@@ -151,7 +151,65 @@ export interface Exercise {
   bodyPart: BodyPart | null;
   /** 거리로 기록할 수 있는 운동만 값이 있다(kcal = 계수 × 체중 × km) */
   kcalPerKgKm: number | null;
+  /** 헬스 종목만 값이 있다 */
+  equipment: Equipment | null;
+  primaryMuscles: Muscle[];
+  secondaryMuscles: Muscle[];
 }
+
+export type Equipment = 'BARBELL' | 'DUMBBELL' | 'MACHINE' | 'CABLE' | 'BODYWEIGHT' | 'KETTLEBELL';
+
+export const EQUIPMENT: { value: Equipment; label: string }[] = [
+  { value: 'BARBELL', label: '바벨' },
+  { value: 'DUMBBELL', label: '덤벨' },
+  { value: 'MACHINE', label: '머신' },
+  { value: 'CABLE', label: '케이블' },
+  { value: 'BODYWEIGHT', label: '맨몸' },
+  { value: 'KETTLEBELL', label: '케틀벨' },
+];
+
+export const equipmentLabel = (e: Equipment): string => EQUIPMENT.find((x) => x.value === e)?.label ?? e;
+
+export type Muscle =
+  | 'CHEST'
+  | 'FRONT_DELT'
+  | 'SIDE_DELT'
+  | 'REAR_DELT'
+  | 'TRAPS'
+  | 'LATS'
+  | 'MID_BACK'
+  | 'LOWER_BACK'
+  | 'BICEPS'
+  | 'TRICEPS'
+  | 'FOREARMS'
+  | 'ABS'
+  | 'OBLIQUES'
+  | 'GLUTES'
+  | 'QUADS'
+  | 'HAMSTRINGS'
+  | 'ADDUCTORS'
+  | 'CALVES';
+
+export const MUSCLE_LABELS: Record<Muscle, string> = {
+  CHEST: '대흉근',
+  FRONT_DELT: '전면 삼각근',
+  SIDE_DELT: '측면 삼각근',
+  REAR_DELT: '후면 삼각근',
+  TRAPS: '승모근',
+  LATS: '광배근',
+  MID_BACK: '능형근·중부 등',
+  LOWER_BACK: '척추기립근',
+  BICEPS: '이두근',
+  TRICEPS: '삼두근',
+  FOREARMS: '전완근',
+  ABS: '복직근',
+  OBLIQUES: '복사근',
+  GLUTES: '둔근',
+  QUADS: '대퇴사두근',
+  HAMSTRINGS: '햄스트링',
+  ADDUCTORS: '내전근',
+  CALVES: '종아리',
+};
 
 export const BODY_PARTS: { value: BodyPart; label: string }[] = [
   { value: 'CHEST', label: '가슴' },

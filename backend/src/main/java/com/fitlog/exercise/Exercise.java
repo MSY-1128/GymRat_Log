@@ -3,11 +3,13 @@ package com.fitlog.exercise;
 import com.fitlog.common.BaseEntity;
 import com.fitlog.common.Source;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Table(name = "exercise")
@@ -40,7 +42,31 @@ public class Exercise extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 1000;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 12)
+    private Equipment equipment;
+
+    @Convert(converter = MuscleListConverter.class)
+    @Column(name = "primary_muscles", length = 200)
+    private List<Muscle> primaryMuscles = List.of();
+
+    @Convert(converter = MuscleListConverter.class)
+    @Column(name = "secondary_muscles", length = 200)
+    private List<Muscle> secondaryMuscles = List.of();
+
     protected Exercise() {
+    }
+
+    public Equipment getEquipment() {
+        return equipment;
+    }
+
+    public List<Muscle> getPrimaryMuscles() {
+        return primaryMuscles == null ? List.of() : primaryMuscles;
+    }
+
+    public List<Muscle> getSecondaryMuscles() {
+        return secondaryMuscles == null ? List.of() : secondaryMuscles;
     }
 
     public ExerciseKind getKind() {

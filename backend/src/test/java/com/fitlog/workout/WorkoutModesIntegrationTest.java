@@ -1,5 +1,6 @@
 package com.fitlog.workout;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -54,9 +55,13 @@ class WorkoutModesIntegrationTest {
     }
 
     private long insert(String name, String met, String kind, String bodyPart, String perKm, int order) {
+        // 헬스 종목은 도구·근육이 필수(카탈로그 제약)
+        boolean strength = kind.equals("STRENGTH");
         return jdbc.queryForObject("INSERT INTO exercise (name, met, source, kind, body_part, kcal_per_kg_km, "
+                + "equipment, primary_muscles, secondary_muscles, "
                 + "sort_order, created_at, updated_at) VALUES (?, " + met + ", 'CATALOG', ?, " + bodyPart + ", "
-                + perKm + ", ?, now(), now()) RETURNING id", Long.class, name, kind, order);
+                + perKm + ", ?, ?, ?, ?, now(), now()) RETURNING id", Long.class, name, kind,
+                strength ? "BARBELL" : null, strength ? "CHEST" : null, strength ? "FRONT_DELT,TRICEPS" : null, order);
     }
 
     private ResultActions send(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder req,
@@ -74,7 +79,12 @@ class WorkoutModesIntegrationTest {
                 .andExpect(jsonPath("$[2].name").value("벤치프레스"))
                 .andExpect(jsonPath("$[2].kind").value("STRENGTH"))
                 .andExpect(jsonPath("$[2].bodyPart").value("CHEST"))
-                .andExpect(jsonPath("$[2].kcalPerKgKm").value(nullValue()));
+                .andExpect(jsonPath("$[2].kcalPerKgKm").value(nullValue()))
+                .andExpect(jsonPath("$[2].equipment").value("BARBELL"))
+                .andExpect(jsonPath("$[2].primaryMuscles", contains("CHEST")))
+                .andExpect(jsonPath("$[2].secondaryMuscles", contains("FRONT_DELT", "TRICEPS")))
+                .andExpect(jsonPath("$[0].primaryMuscles", hasSize(0)))
+                .andExpect(jsonPath("$[0].equipment").value(nullValue()));
     }
 
     @Test

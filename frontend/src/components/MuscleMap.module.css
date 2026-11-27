@@ -1,0 +1,108 @@
+.wrap {
+  display: grid;
+  gap: 10px;
+  padding: 14px 12px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.map {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.view {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.svg {
+  width: 150px;
+  height: auto;
+  aspect-ratio: 200 / 410;
+}
+
+.skin {
+  fill: var(--muscle-skin);
+}
+
+.muscle,
+.primary,
+.secondary {
+  stroke: var(--muscle-line);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  transition: fill 0.2s;
+}
+
+.muscle {
+  fill: var(--muscle-base);
+}
+
+.primary {
+  fill: var(--muscle-primary);
+}
+
+.secondary {
+  fill: var(--muscle-secondary);
+}
+
+.line {
+  fill: none;
+  stroke: var(--muscle-line);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.legend {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.legend > div {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+}
+
+.legend dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.legend dd {
+  margin: 0;
+  color: var(--text);
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.swatchPrimary {
+  background: var(--muscle-primary);
+}
+
+.swatchSecondary {
+  background: var(--muscle-secondary);
+}
