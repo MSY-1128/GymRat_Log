@@ -148,14 +148,47 @@ export interface Exercise {
   met: number;
   source: Source;
   kind: ExerciseKind;
+  energySystem: EnergySystem;
   bodyPart: BodyPart | null;
-  /** 거리로 기록할 수 있는 운동만 값이 있다(kcal = 계수 × 체중 × km) */
-  kcalPerKgKm: number | null;
+  /** 시간 운동의 강도별 MET(헬스는 null). met는 보통 강도 */
+  metLight: number | null;
+  metVigorous: number | null;
+  /** 속도별 MET 점. 거리·속도로 강도를 정할 수 있는 운동만 값이 있다 */
+  speedMetCurve: SpeedPoint[];
   /** 헬스 종목만 값이 있다 */
   equipment: Equipment | null;
   primaryMuscles: Muscle[];
   secondaryMuscles: Muscle[];
+  /** 동작 애니메이션 키(패턴[:변형]) */
+  motion: string | null;
 }
+
+export interface SpeedPoint {
+  speedKmh: number;
+  met: number;
+}
+
+/** 무산소 / 유산소 / 무산소+유산소 */
+export type EnergySystem = 'ANAEROBIC' | 'AEROBIC' | 'MIXED';
+
+export const ENERGY_SYSTEMS: { value: EnergySystem; label: string }[] = [
+  { value: 'ANAEROBIC', label: '무산소' },
+  { value: 'AEROBIC', label: '유산소' },
+  { value: 'MIXED', label: '무산소+유산소' },
+];
+
+export const energyLabel = (e: EnergySystem): string => ENERGY_SYSTEMS.find((x) => x.value === e)?.label ?? e;
+
+export type Intensity = 'LIGHT' | 'MODERATE' | 'VIGOROUS';
+export type IntensityBasis = 'LEVEL' | 'DISTANCE' | 'SPEED';
+
+export const INTENSITIES: { value: Intensity; label: string }[] = [
+  { value: 'LIGHT', label: '가볍게' },
+  { value: 'MODERATE', label: '보통' },
+  { value: 'VIGOROUS', label: '힘들게' },
+];
+
+export const intensityLabel = (i: Intensity): string => INTENSITIES.find((x) => x.value === i)?.label ?? i;
 
 export type Equipment = 'BARBELL' | 'DUMBBELL' | 'MACHINE' | 'CABLE' | 'BODYWEIGHT' | 'KETTLEBELL';
 
@@ -265,10 +298,15 @@ export interface WorkoutEntry {
   weightKgSnapshot: number;
   metSnapshot: number;
   kcalPerKgKmSnapshot: number | null;
+  /** 시간 운동의 강도 기준. 이전 시간 기록은 null(보통) */
+  intensityBasis: IntensityBasis | null;
+  intensity: Intensity | null;
+  speedKmh: number | null;
+  energySystem: EnergySystem;
   calculatedKcal: number;
 }
 
-/** mode별로 필요한 값만 보낸다. TIME: minutes / DISTANCE: distanceKm(+minutes) / SETS: sets·reps·liftedKg */
+/** mode별로 필요한 값만 보낸다. TIME: minutes + (intensity | distanceKm | speedKmh) / SETS: sets·reps·liftedKg */
 export interface WorkoutInput {
   date: string;
   exerciseId: number;
@@ -278,6 +316,8 @@ export interface WorkoutInput {
   sets?: number | null;
   reps?: number | null;
   liftedKg?: number | null;
+  intensity?: Intensity | null;
+  speedKmh?: number | null;
 }
 
 /** 헬스 1세트(수행 + 휴식) 추정 시간. 서버 Calculator.MINUTES_PER_SET과 같다. */

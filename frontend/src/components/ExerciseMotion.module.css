@@ -1,0 +1,176 @@
+.wrap {
+  position: relative;
+  border-radius: var(--radius-sm);
+  background: var(--motion-bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.stage {
+  display: grid;
+  place-items: center;
+  padding: 8px 8px 4px;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  aspect-ratio: 220 / 196;
+  max-height: 300px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+}
+
+.still {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.toggle {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 몸 */
+.outline {
+  stroke: var(--motion-line);
+  stroke-linecap: round;
+  fill: var(--motion-line);
+}
+
+.body {
+  stroke: var(--motion-body);
+  stroke-linecap: round;
+  fill: var(--motion-body);
+}
+
+.bodyFar {
+  stroke: var(--motion-body-far);
+  stroke-linecap: round;
+  fill: var(--motion-body-far);
+}
+
+.farGroup {
+  opacity: 0.92;
+}
+
+.torso {
+  fill: var(--motion-body);
+  stroke: var(--motion-line);
+  stroke-linejoin: round;
+}
+
+.mPrimary {
+  stroke: var(--muscle-primary);
+  fill: var(--muscle-primary);
+  stroke-linecap: round;
+}
+
+.mSecondary {
+  stroke: var(--muscle-secondary);
+  fill: var(--muscle-secondary);
+  stroke-linecap: round;
+}
+
+/* 기구 */
+.floor {
+  stroke: var(--motion-floor);
+  stroke-linecap: round;
+}
+
+.frame {
+  stroke: var(--motion-frame);
+  fill: none;
+  stroke-linecap: round;
+}
+
+circle.frame {
+  stroke-width: 3;
+}
+
+.pad {
+  stroke: var(--motion-pad);
+  fill: var(--motion-pad);
+  stroke-linecap: round;
+}
+
+.plate,
+.plateFar {
+  fill: var(--motion-plate);
+  stroke: var(--motion-plate);
+  stroke-linecap: round;
+}
+
+.plateFar {
+  opacity: 0.7;
+}
+
+.hub {
+  fill: var(--motion-frame);
+}
+
+.bar {
+  stroke: var(--motion-plate);
+  stroke-linecap: round;
+}
+
+.cable,
+.rope {
+  stroke: var(--motion-cable);
+  fill: none;
+}
+
+.mark {
+  stroke: var(--motion-mark);
+  fill: none;
+}
+
+.water {
+  stroke: var(--series-1);
+  fill: none;
+  opacity: 0.6;
+}
+
+.glove,
+.gloveFar {
+  fill: var(--muscle-primary);
+}
+
+.gloveFar {
+  opacity: 0.75;
+}
+
+.ball {
+  fill: var(--series-2);
+}
+
+.racket {
+  fill: none;
+  stroke: var(--motion-plate);
+  stroke-width: 2;
+}

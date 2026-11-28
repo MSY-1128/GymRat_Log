@@ -13,12 +13,25 @@ import { WorkoutsPage } from './pages/WorkoutsPage';
 // 차트 라이브러리(Recharts)는 기록 화면에서만 필요하므로 분리 로딩한다.
 const HistoryPage = lazy(() => import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })));
 const BodyPage = lazy(() => import('./pages/BodyPage').then((m) => ({ default: m.BodyPage })));
+const MotionGallery = import.meta.env.DEV
+  ? lazy(() => import('./pages/MotionGallery').then((m) => ({ default: m.MotionGallery })))
+  : null;
 
 export function App() {
   return (
     <Routes>
       <Route path="login" element={<AuthPage mode="login" />} />
       <Route path="signup" element={<AuthPage mode="signup" />} />
+      {MotionGallery && (
+        <Route
+          path="dev/motions"
+          element={
+            <Suspense fallback={<Loading />}>
+              <MotionGallery />
+            </Suspense>
+          }
+        />
+      )}
       <Route
         element={
           <RequireAuth>

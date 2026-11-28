@@ -4,7 +4,22 @@ import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import type { BarcodeLookup, BodyComposition, DailySummary, Exercise, ExternalFood, Food, MealEntry, Profile, User, WorkoutEntry } from '../api/types';
+import type {
+  BarcodeLookup,
+  BodyComposition,
+  BodyPart,
+  DailySummary,
+  EnergySystem,
+  Equipment,
+  Exercise,
+  ExternalFood,
+  Food,
+  MealEntry,
+  Muscle,
+  Profile,
+  User,
+  WorkoutEntry,
+} from '../api/types';
 
 export function renderWithProviders(ui: ReactElement, route = '/') {
   const client = createQueryClient(true);
@@ -22,6 +37,34 @@ const json = (status: number, body: unknown) =>
   });
 
 /** 테스트용 인메모리 API. 계산은 서버 규칙과 동일하게 흉내 낸다. */
+/** 시간 운동 픽스처(강도별 MET·속도 곡선) */
+function timeEx(id: number, name: string, energySystem: EnergySystem, metLight: number, met: number, metVigorous: number, curve: [number, number][], motion: string): Exercise {
+  return {
+    id, name, met, source: 'CATALOG', kind: 'TIME', energySystem, bodyPart: null, metLight, metVigorous,
+    speedMetCurve: curve.map(([speedKmh, m]) => ({ speedKmh, met: m })), equipment: null, primaryMuscles: [], secondaryMuscles: [], motion,
+  };
+}
+
+/** 헬스 종목 픽스처 */
+function gymEx(id: number, name: string, met: number, bodyPart: BodyPart, equipment: Equipment, primaryMuscles: Muscle[], secondaryMuscles: Muscle[], motion: string): Exercise {
+  return {
+    id, name, met, source: 'CATALOG', kind: 'STRENGTH', energySystem: 'ANAEROBIC', bodyPart, metLight: null, metVigorous: null,
+    speedMetCurve: [], equipment, primaryMuscles, secondaryMuscles, motion,
+  };
+}
+
+/** 서버 Calculator.metForSpeed와 같은 식 */
+function metForSpeed(curve: { speedKmh: number; met: number }[], v: number): number {
+  const first = curve[0]!;
+  const last = curve[curve.length - 1]!;
+  if (v <= first.speedKmh) return first.met;
+  if (v >= last.speedKmh) return last.met;
+  const i = curve.findIndex((p) => p.speedKmh >= v);
+  const a = curve[i - 1]!;
+  const b = curve[i]!;
+  return Math.round((a.met + ((b.met - a.met) * (v - a.speedKmh)) / (b.speedKmh - a.speedKmh)) * 100) / 100;
+}
+
 export function createFakeServer() {
   const state = {
     /** 로그인한 사용자(null이면 로그아웃 상태). 기본은 로그인 상태. */
@@ -38,11 +81,13 @@ export function createFakeServer() {
     /** 바코드 조회 결과(서버 응답 형태) */
     barcodes: {} as Record<string, BarcodeLookup>,
     exercises: [
-      { id: 1, name: '달리기', met: 8, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: 1, equipment: null, primaryMuscles: [], secondaryMuscles: [] },
-      { id: 2, name: '테니스', met: 7.3, source: 'CATALOG', kind: 'TIME', bodyPart: null, kcalPerKgKm: null, equipment: null, primaryMuscles: [], secondaryMuscles: [] },
-      { id: 3, name: '벤치프레스', met: 5, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null, equipment: 'BARBELL', primaryMuscles: ['CHEST'], secondaryMuscles: ['FRONT_DELT', 'TRICEPS'] },
-      { id: 4, name: '푸시업', met: 3.8, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'CHEST', kcalPerKgKm: null, equipment: 'BODYWEIGHT', primaryMuscles: ['CHEST'], secondaryMuscles: ['FRONT_DELT', 'TRICEPS', 'ABS'] },
-      { id: 5, name: '스쿼트', met: 6, source: 'CATALOG', kind: 'STRENGTH', bodyPart: 'LEGS', kcalPerKgKm: null, equipment: 'BARBELL', primaryMuscles: ['QUADS', 'GLUTES'], secondaryMuscles: ['ADDUCTORS', 'HAMSTRINGS'] },
+      timeEx(1, '달리기', 'AEROBIC', 6, 8.3, 11, [[6.4, 6], [8, 8.3], [9.7, 9.8], [11.3, 11]], 'run'),
+      timeEx(2, '테니스', 'MIXED', 5, 7.3, 8, [], 'racket'),
+      gymEx(3, '벤치프레스', 5, 'CHEST', 'BARBELL', ['CHEST'], ['FRONT_DELT', 'TRICEPS'], 'bench'),
+      gymEx(4, '푸시업', 3.8, 'CHEST', 'BODYWEIGHT', ['CHEST'], ['FRONT_DELT', 'TRICEPS', 'ABS'], 'pushup'),
+      gymEx(5, '스쿼트', 6, 'LEGS', 'BARBELL', ['QUADS', 'GLUTES'], ['ADDUCTORS', 'HAMSTRINGS'], 'squat'),
+      timeEx(6, '요가', 'ANAEROBIC', 2.3, 3, 4, [], 'yoga'),
+      { ...gymEx(7, '점프 스쿼트', 8, 'LEGS', 'BODYWEIGHT', ['QUADS', 'GLUTES'], ['CALVES'], 'squat:jump'), energySystem: 'MIXED' },
     ] as Exercise[],
     meals: [] as MealEntry[],
     workouts: [] as WorkoutEntry[],
@@ -237,16 +282,22 @@ export function createFakeServer() {
       if (!ex) return json(404, { code: 'NOT_FOUND', message: '운동을(를) 찾을 수 없습니다.', fieldErrors: {} });
       const prev = workoutId ? state.workouts.find((w) => w.id === Number(workoutId[1])) : undefined;
       const bw = prev?.weightKgSnapshot ?? state.profile.weightKg;
-      const mode = body.mode ?? 'TIME';
-      const perMin = (ex.met * 3.5 * bw) / 200;
-      const duration = mode === 'SETS' ? body.sets * 2.5 : mode === 'TIME' ? body.minutes : (body.minutes ?? 0);
+      const mode = body.mode === 'SETS' ? 'SETS' : 'TIME';
+      // 시간 운동: 체감 강도 또는 속도(거리 ÷ 시간)로 MET를 정한다
+      const basis = mode === 'SETS' ? null : body.distanceKm != null ? 'DISTANCE' : body.speedKmh != null ? 'SPEED' : 'LEVEL';
+      const intensity = basis === 'LEVEL' ? (body.intensity ?? 'MODERATE') : null;
+      const speed = basis === 'DISTANCE' ? Math.round(((body.distanceKm * 60) / body.minutes) * 100) / 100 : basis === 'SPEED' ? body.speedKmh : null;
+      const km = basis === 'DISTANCE' ? body.distanceKm : basis === 'SPEED' ? Math.round(((body.speedKmh * body.minutes) / 60) * 100) / 100 : null;
+      const met =
+        mode === 'SETS' ? ex.met : speed != null ? metForSpeed(ex.speedMetCurve, speed) : intensity === 'LIGHT' ? ex.metLight! : intensity === 'VIGOROUS' ? ex.metVigorous! : ex.met;
+      const duration = mode === 'SETS' ? body.sets * 2.5 : body.minutes;
       const entry: WorkoutEntry = {
         id: prev?.id ?? state.nextId++,
         date: body.date,
         exerciseId: ex.id,
         mode,
-        minutes: mode === 'SETS' ? null : (body.minutes ?? null),
-        distanceKm: mode === 'DISTANCE' ? body.distanceKm : null,
+        minutes: mode === 'SETS' ? null : body.minutes,
+        distanceKm: km,
         sets: mode === 'SETS' ? body.sets : null,
         reps: mode === 'SETS' ? body.reps : null,
         liftedKg: mode === 'SETS' ? body.liftedKg : null,
@@ -255,9 +306,13 @@ export function createFakeServer() {
         bodyPart: ex.bodyPart,
         nameSnapshot: ex.name,
         weightKgSnapshot: bw,
-        metSnapshot: ex.met,
-        kcalPerKgKmSnapshot: ex.kcalPerKgKm,
-        calculatedKcal: mode === 'DISTANCE' ? ex.kcalPerKgKm! * bw * body.distanceKm : perMin * duration,
+        metSnapshot: met,
+        kcalPerKgKmSnapshot: null,
+        intensityBasis: basis,
+        intensity,
+        speedKmh: speed,
+        energySystem: ex.energySystem,
+        calculatedKcal: ((met * 3.5 * bw) / 200) * duration,
       };
       state.workouts = [...state.workouts.filter((w) => w.id !== entry.id), entry];
       return json(workoutId ? 200 : 201, entry);

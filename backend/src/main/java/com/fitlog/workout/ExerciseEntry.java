@@ -4,6 +4,7 @@ import com.fitlog.common.BaseEntity;
 import com.fitlog.common.Calculator;
 import com.fitlog.exercise.BodyPart;
 import com.fitlog.exercise.Exercise;
+import com.fitlog.exercise.Intensity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,12 +17,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 운동 기록. 생성 시점의 프로필 체중과 운동 MET·거리 계수를 snapshot으로 보관한다.
- * 수정 시 체중은 유지하고, 운동 종류가 바뀐 경우에만 새 MET/이름/거리 계수를 적용한다.
+ * 운동 기록. 생성 시점의 프로필 체중과 적용 MET(시간 운동은 강도에 따른 MET)를 snapshot으로 보관한다.
+ * 수정 시 체중은 유지하고, 운동 종류나 강도 입력이 바뀐 경우에만 새 MET를 적용한다.
  *
  * <ul>
- *   <li>TIME: MET × 3.5 × 체중 / 200 × 분</li>
- *   <li>DISTANCE: 거리 계수 × 체중 × km (시간은 기록용)</li>
+ *   <li>TIME: MET × 3.5 × 체중 / 200 × 분. MET는 체감 강도 또는 속도(거리 ÷ 시간)로 정한다</li>
+ *   <li>DISTANCE(이전 기록만): 거리 계수 × 체중 × km</li>
  *   <li>SETS: MET × 3.5 × 체중 / 200 × (세트 × 2.5분). 무게·횟수는 볼륨 기록용</li>
  * </ul>
  */
@@ -68,6 +69,17 @@ public class ExerciseEntry extends BaseEntity {
     @Column(name = "kcal_per_kg_km_snapshot")
     private BigDecimal kcalPerKgKmSnapshot;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "intensity_basis", length = 10)
+    private IntensityBasis intensityBasis;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private Intensity intensity;
+
+    @Column(name = "speed_kmh")
+    private BigDecimal speedKmh;
+
     protected ExerciseEntry() {
     }
 
@@ -79,16 +91,19 @@ public class ExerciseEntry extends BaseEntity {
     public ExerciseEntry(Long userId, LocalDate date, Exercise exercise, WorkoutDetail detail, BigDecimal weightKg) {
         this.userId = userId;
         this.weightKgSnapshot = weightKg;
-        takeSnapshot(exercise);
+        takeSnapshot(exercise, detail);
         apply(date, detail);
     }
 
+    /**
+     * 수정. 운동 종류가 바뀌었거나 강도 입력(기준·체감 강도·속도)이 바뀌었을 때만 새 MET를 적용하고,
+     * 그대로면 기록 당시 MET를 유지한다.
+     */
     public void update(LocalDate date, Exercise exercise, WorkoutDetail detail) {
         if (!this.exercise.getId().equals(exercise.getId())) {
-            takeSnapshot(exercise);
-        } else if (detail.mode() == WorkoutMode.DISTANCE && kcalPerKgKmSnapshot == null) {
-            // 같은 운동을 시간 → 거리 기록으로 바꾸는 경우
-            kcalPerKgKmSnapshot = exercise.getKcalPerKgKm();
+            takeSnapshot(exercise, detail);
+        } else if (!detail.sameIntensityAs(intensityBasis, intensity, speedKmh)) {
+            this.metSnapshot = detail.met() != null ? detail.met() : exercise.getMet();
         }
         apply(date, detail);
     }
@@ -101,13 +116,19 @@ public class ExerciseEntry extends BaseEntity {
         this.sets = d.sets();
         this.reps = d.reps();
         this.liftedKg = d.liftedKg();
+        this.intensityBasis = d.basis();
+        this.intensity = d.intensity();
+        this.speedKmh = d.speedKmh();
+        if (d.mode() != WorkoutMode.DISTANCE) {
+            // 이전 거리 기록을 다른 방식으로 바꾸면 km당 계수는 더 쓰지 않는다
+            this.kcalPerKgKmSnapshot = null;
+        }
     }
 
-    private void takeSnapshot(Exercise exercise) {
+    private void takeSnapshot(Exercise exercise, WorkoutDetail detail) {
         this.exercise = exercise;
         this.nameSnapshot = exercise.getName();
-        this.metSnapshot = exercise.getMet();
-        this.kcalPerKgKmSnapshot = exercise.getKcalPerKgKm();
+        this.metSnapshot = detail.met() != null ? detail.met() : exercise.getMet();
     }
 
     public BigDecimal calculatedKcal() {
@@ -182,5 +203,21 @@ public class ExerciseEntry extends BaseEntity {
 
     public BigDecimal getKcalPerKgKmSnapshot() {
         return kcalPerKgKmSnapshot;
+    }
+
+    public IntensityBasis getIntensityBasis() {
+        return intensityBasis;
+    }
+
+    public Intensity getIntensity() {
+        return intensity;
+    }
+
+    public BigDecimal getSpeedKmh() {
+        return speedKmh;
+    }
+
+    public com.fitlog.exercise.EnergySystem getEnergySystem() {
+        return exercise.getEnergySystem();
     }
 }

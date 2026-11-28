@@ -4,22 +4,28 @@ import { ApiError } from '../api/client';
 import { useDeleteWorkout, useExercises, useProfile, useSaveWorkout, useSummary, useWorkouts } from '../api/hooks';
 import {
   BODY_PARTS,
+  ENERGY_SYSTEMS,
   EQUIPMENT,
+  INTENSITIES,
   MINUTES_PER_SET,
+  energyLabel,
   equipmentLabel,
   type BodyPart,
+  type EnergySystem,
   type Equipment,
+  type Intensity,
   type Exercise,
   type WorkoutEntry,
   type WorkoutInput,
 } from '../api/types';
+import { ExerciseMotion } from '../components/ExerciseMotion';
 import { MuscleMap } from '../components/MuscleMap';
 import { DateNav } from '../components/DateNav';
 import { Field } from '../components/Field';
 import { Empty, ErrorState, Loading, errorMessage } from '../components/QueryState';
 import { formatAmount, formatKcal } from '../lib/format';
 import { useSelectedDate } from '../lib/useSelectedDate';
-import { estimateKcal, workoutBasis, workoutDetail } from '../lib/workout';
+import { estimateKcal, metForSpeed, workoutBasis, workoutDetail } from '../lib/workout';
 import ui from '../styles/ui.module.css';
 import meals from './MealsPage.module.css';
 import styles from './WorkoutsPage.module.css';
@@ -54,7 +60,7 @@ export function WorkoutsPage() {
         <div>
           <h1 className={ui.title}>운동</h1>
           <p className={ui.subtitle}>
-            헬스는 세트·횟수·무게로, 그 밖의 운동은 시간이나 거리로 기록해요. 칼로리는 휴식 대사를 포함한 추정치예요.
+            무산소(헬스)는 세트·횟수·무게로, 유산소와 무산소+유산소 운동은 시간과 강도(체감 강도·거리·속도)로 기록해요. 칼로리는 휴식 대사를 포함한 추정치예요.
           </p>
         </div>
         <DateNav date={date} onChange={setDate} />
@@ -110,7 +116,7 @@ export function WorkoutsPage() {
                   <div className={ui.itemMain}>
                     <div className={ui.itemName}>
                       {w.nameSnapshot}
-                      {w.mode === 'SETS' && <span className={styles.badge}>헬스</span>}
+                      <span className={styles.badge}>{energyLabel(w.energySystem)}</span>
                     </div>
                     <div className={ui.itemMeta}>{workoutDetail(w)}</div>
                     <div className={ui.itemMeta}>
@@ -148,10 +154,10 @@ export function WorkoutsPage() {
               • 헬스: 들어 올린 무게로 칼로리를 구하는 검증된 식은 없어서, 세트 수로 운동 시간(1세트 ≈ 수행+휴식{' '}
               {MINUTES_PER_SET}분)을 추정해 MET로 계산해요. 무게·횟수는 볼륨(세트×횟수×무게) 기록용이에요.
             </p>
-            <p className={ui.hint}>• 시간: MET × 3.5 × 체중(kg) ÷ 200 × 분</p>
+            <p className={ui.hint}>• 유산소·무산소+유산소: MET × 3.5 × 체중(kg) ÷ 200 × 분. MET는 체감 강도(가볍게·보통·힘들게)로 정해요.</p>
             <p className={ui.hint}>
-              • 거리: km당 계수 × 체중(kg) × km (달리기 1.0, 걷기 0.5, 자전거 0.4, 수영 2.6 kcal/kg/km). 속도·실력에
-              따라 달라져요.
+              • 걷기·달리기·자전거·수영·로잉머신은 거리나 속도를 넣으면 평균 속도에 맞는 MET를 써요(예: 달리기 시속 8km ≈
+              MET 8.3, 10km ≈ 10).
             </p>
             <p className={ui.hint}>
               • 운동 소모량은 섭취 목표에 자동으로 더하지 않아요. 활동계수에 이미 운동이 포함되어 있을 수 있어요.
@@ -173,6 +179,8 @@ interface FormProps {
 
 /** 종목 선택값: 헬스면 'GYM', 그 밖의 운동은 운동 ID */
 type Sport = 'GYM' | number;
+/** 시간 운동의 강도 기준 */
+type Basis = 'LEVEL' | 'DISTANCE' | 'SPEED';
 
 function WorkoutForm(props: FormProps) {
   const exercises = useExercises();
@@ -184,28 +192,47 @@ function WorkoutForm(props: FormProps) {
 
 function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises }: FormProps & { exercises: Exercise[] }) {
   const save = useSaveWorkout();
-  const gym = exercises.filter((x) => x.kind === 'STRENGTH');
-  const others = exercises.filter((x) => x.kind === 'TIME');
+  const gymAll = exercises.filter((x) => x.kind === 'STRENGTH');
+  const timeAll = exercises.filter((x) => x.kind === 'TIME');
   const editingIsGym = editing?.mode === 'SETS';
+  const editingExercise = editing ? exercises.find((x) => x.id === editing.exerciseId) : undefined;
 
-  const [sport, setSport] = useState<Sport>(
-    editing ? (editingIsGym ? 'GYM' : editing.exerciseId) : (others[0]?.id ?? 'GYM'),
+  const [category, setCategory] = useState<EnergySystem>(
+    editingExercise ? (editingIsGym && editingExercise.energySystem === 'MIXED' ? 'ANAEROBIC' : editingExercise.energySystem) : 'ANAEROBIC',
   );
+  const [sport, setSport] = useState<Sport>(editing ? (editingIsGym ? 'GYM' : editing.exerciseId) : 'GYM');
   const [part, setPart] = useState<BodyPart>(editing?.bodyPart ?? 'CHEST');
   const [gymId, setGymId] = useState<number | null>(editingIsGym ? editing!.exerciseId : null);
   const [equip, setEquip] = useState<Equipment | 'ALL'>('ALL');
   const [sets, setSets] = useState(editing?.sets != null ? String(editing.sets) : '3');
   const [reps, setReps] = useState(editing?.reps != null ? String(editing.reps) : '10');
   const [lifted, setLifted] = useState(editing?.liftedKg != null ? String(editing.liftedKg) : '');
-  const [mode, setMode] = useState<'TIME' | 'DISTANCE'>(editing?.mode === 'DISTANCE' ? 'DISTANCE' : 'TIME');
   const [minutes, setMinutes] = useState(editing?.minutes != null ? String(editing.minutes) : editing ? '' : '30');
+  const [basis, setBasis] = useState<Basis>(
+    editing?.mode === 'DISTANCE' ? 'DISTANCE' : editing?.intensityBasis === 'SPEED' ? 'SPEED' : editing?.intensityBasis === 'DISTANCE' ? 'DISTANCE' : 'LEVEL',
+  );
+  const [level, setLevel] = useState<Intensity>(editing?.intensity ?? 'MODERATE');
   const [km, setKm] = useState(editing?.distanceKm != null ? String(editing.distanceKm) : '');
+  const [speed, setSpeed] = useState(editing?.speedKmh != null ? String(editing.speedKmh) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const name = useId();
 
+  // 유형별 종목: 무산소 = 헬스 + 요가·필라테스, 무산소+유산소 = 헬스(점프·스윙 등) + 구기·격투 종목
+  const gym = category === 'MIXED' ? gymAll.filter((x) => x.energySystem === 'MIXED') : category === 'ANAEROBIC' ? gymAll : [];
+  const others = timeAll.filter((x) => x.energySystem === category);
+  const chooseCategory = (c: EnergySystem) => {
+    setCategory(c);
+    const hasGym = c === 'ANAEROBIC' || gymAll.some((x) => x.energySystem === 'MIXED');
+    const first = timeAll.find((x) => x.energySystem === c);
+    setSport(c === 'ANAEROBIC' && hasGym ? 'GYM' : (first?.id ?? 'GYM'));
+    setErrors({});
+  };
+
   const isGym = sport === 'GYM';
-  const sportExercise = isGym ? null : (others.find((x) => x.id === sport) ?? null);
-  const inPart = gym.filter((x) => x.bodyPart === part);
+  const sportExercise = isGym ? null : (timeAll.find((x) => x.id === sport) ?? null);
+  const gymParts = BODY_PARTS.filter((p) => gym.some((x) => x.bodyPart === p.value));
+  const activePart = gymParts.some((p) => p.value === part) ? part : (gymParts[0]?.value ?? part);
+  const inPart = gym.filter((x) => x.bodyPart === activePart);
   const partEquipment = EQUIPMENT.filter((e) => inPart.some((x) => x.equipment === e.value));
   const partExercises = equip === 'ALL' ? inPart : inPart.filter((x) => x.equipment === equip);
   // 부위나 도구를 바꾸면 목록의 첫 종목이 선택된 상태로 시작한다
@@ -214,22 +241,40 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
     setPart(p);
     setEquip('ALL');
   };
-  const canDistance = sportExercise?.kcalPerKgKm != null;
-  const effectiveMode = isGym ? 'SETS' : canDistance ? mode : 'TIME';
+
+  const canPace = (sportExercise?.speedMetCurve.length ?? 0) > 0;
+  const effectiveBasis: Basis = canPace ? basis : 'LEVEL';
 
   const n = (s: string) => (s.trim() === '' ? NaN : Number(s));
-  const estimate =
-    effectiveMode === 'SETS'
-      ? gymExercise && estimateKcal({ mode: 'SETS', met: gymExercise.met, sets: n(sets) || 0 }, weightKg)
-      : effectiveMode === 'DISTANCE'
-        ? sportExercise && estimateKcal({ mode: 'DISTANCE', perKgKm: sportExercise.kcalPerKgKm!, km: n(km) || 0 }, weightKg)
-        : sportExercise && estimateKcal({ mode: 'TIME', met: sportExercise.met, minutes: n(minutes) || 0 }, weightKg);
+  const m = n(minutes);
+  // 거리·속도 중 입력한 쪽으로 나머지를 계산한다
+  const pace =
+    effectiveBasis === 'DISTANCE'
+      ? n(km) > 0 && m > 0
+        ? { speed: Math.round(((n(km) * 60) / m) * 100) / 100, km: n(km) }
+        : null
+      : effectiveBasis === 'SPEED'
+        ? n(speed) > 0 && m > 0
+          ? { speed: n(speed), km: Math.round(((n(speed) * m) / 60) * 100) / 100 }
+          : null
+        : null;
+  const levelMet = (x: Exercise, i: Intensity) => (i === 'LIGHT' ? x.metLight : i === 'VIGOROUS' ? x.metVigorous : x.met) ?? x.met;
+  const timeMet = sportExercise
+    ? effectiveBasis === 'LEVEL'
+      ? levelMet(sportExercise, level)
+      : pace && metForSpeed(sportExercise.speedMetCurve, pace.speed)
+    : null;
+  const estimate = isGym
+    ? gymExercise && estimateKcal({ mode: 'SETS', met: gymExercise.met, sets: n(sets) || 0 }, weightKg)
+    : timeMet != null
+      ? estimateKcal({ mode: 'TIME', met: timeMet, minutes: m || 0 }, weightKg)
+      : null;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     let input: WorkoutInput | null = null;
-    if (effectiveMode === 'SETS') {
+    if (isGym) {
       const s = n(sets);
       const r = n(reps);
       const l = n(lifted);
@@ -239,27 +284,22 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
       if (!(l >= 0 && l <= 500)) errs.liftedKg = '0~500kg으로 입력해 주세요. 맨몸 운동은 0이에요.';
       if (gymExercise) input = { date, exerciseId: gymExercise.id, mode: 'SETS', sets: s, reps: r, liftedKg: Math.round(l * 10) / 10 };
     } else {
-      const m = n(minutes);
-      const d = n(km);
       if (!sportExercise) errs.exerciseId = '종목을 선택해 주세요.';
-      if (effectiveMode === 'TIME') {
-        if (!(Number.isInteger(m) && m >= 1 && m <= 1440)) errs.minutes = '1~1440분 사이 정수로 입력해 주세요.';
-      } else {
-        if (!(d > 0 && d <= 300)) errs.distanceKm = '0보다 크고 300km 이하로 입력해 주세요.';
-        if (minutes.trim() !== '' && !(Number.isInteger(m) && m >= 1 && m <= 1440))
-          errs.minutes = '1~1440분 사이 정수로 입력하거나 비워 두세요.';
-      }
-      if (sportExercise)
+      if (!(Number.isInteger(m) && m >= 1 && m <= 1440)) errs.minutes = '1~1440분 사이 정수로 입력해 주세요.';
+      if (effectiveBasis === 'DISTANCE' && !(n(km) > 0 && n(km) <= 300)) errs.distanceKm = '0보다 크고 300km 이하로 입력해 주세요.';
+      if (effectiveBasis === 'SPEED' && !(n(speed) >= 0.5 && n(speed) <= 80)) errs.speedKmh = '시속 0.5~80km로 입력해 주세요.';
+      if (!errs.distanceKm && !errs.speedKmh && !errs.minutes && pace && !(pace.speed >= 0.5 && pace.speed <= 80))
+        errs[effectiveBasis === 'DISTANCE' ? 'distanceKm' : 'speedKmh'] =
+          `시간에 비해 거리가 맞지 않아요. 평균 시속 ${formatAmount(pace.speed)}km예요.`;
+      if (sportExercise) {
+        const base = { date, exerciseId: sportExercise.id, mode: 'TIME' as const, minutes: m };
         input =
-          effectiveMode === 'TIME'
-            ? { date, exerciseId: sportExercise.id, mode: 'TIME', minutes: m }
-            : {
-                date,
-                exerciseId: sportExercise.id,
-                mode: 'DISTANCE',
-                distanceKm: Math.round(d * 100) / 100,
-                minutes: minutes.trim() === '' ? null : m,
-              };
+          effectiveBasis === 'LEVEL'
+            ? { ...base, intensity: level }
+            : effectiveBasis === 'DISTANCE'
+              ? { ...base, distanceKm: Math.round(n(km) * 100) / 100 }
+              : { ...base, speedKmh: Math.round(n(speed) * 100) / 100 };
+      }
     }
     setErrors(errs);
     if (Object.keys(errs).length || !input) return;
@@ -276,16 +316,28 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
 
   const apiError = save.error;
   const showFormError = save.isError && !(apiError instanceof ApiError && Object.keys(apiError.fieldErrors).length);
+  const shown = isGym ? gymExercise : sportExercise;
 
   return (
     <form className={ui.form} onSubmit={submit} noValidate aria-label={editing ? '운동 수정' : '운동 추가'}>
+      <div className={styles.parts3} role="radiogroup" aria-label="운동 유형">
+        {ENERGY_SYSTEMS.map((c) => (
+          <label key={c.value} className={styles.part}>
+            <input type="radio" name={name + '-cat'} checked={category === c.value} onChange={() => chooseCategory(c.value)} />
+            {c.label}
+          </label>
+        ))}
+      </div>
+
       <fieldset className={styles.group}>
         <legend className={styles.legend}>종목</legend>
         <div className={styles.chips}>
-          <label className={`${styles.chip} ${styles.gymChip}`}>
-            <input type="radio" name={name + '-sport'} checked={isGym} onChange={() => setSport('GYM')} />
-            헬스
-          </label>
+          {gym.length > 0 && (
+            <label className={`${styles.chip} ${styles.gymChip}`}>
+              <input type="radio" name={name + '-sport'} checked={isGym} onChange={() => setSport('GYM')} />
+              헬스
+            </label>
+          )}
           {others.map((x) => (
             <label key={x.id} className={styles.chip}>
               <input type="radio" name={name + '-sport'} checked={sport === x.id} onChange={() => setSport(x.id)} />
@@ -295,14 +347,25 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
         </div>
       </fieldset>
 
+      {shown?.motion && (
+        <ExerciseMotion
+          key={shown.id}
+          name={shown.name}
+          motion={shown.motion}
+          equipment={shown.equipment}
+          primary={shown.primaryMuscles}
+          secondary={shown.secondaryMuscles}
+        />
+      )}
+
       {isGym ? (
         <>
           <fieldset className={styles.group}>
             <legend className={styles.legend}>부위</legend>
             <div className={styles.parts}>
-              {BODY_PARTS.map((p) => (
+              {gymParts.map((p) => (
                 <label key={p.value} className={styles.part}>
-                  <input type="radio" name={name + '-part'} checked={part === p.value} onChange={() => choosePart(p.value)} />
+                  <input type="radio" name={name + '-part'} checked={activePart === p.value} onChange={() => choosePart(p.value)} />
                   {p.label}
                 </label>
               ))}
@@ -310,15 +373,6 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
           </fieldset>
 
           <div className={styles.gymPick}>
-            <div className={styles.figure}>
-              {gymExercise && (
-                <MuscleMap
-                  name={gymExercise.name}
-                  primary={gymExercise.primaryMuscles}
-                  secondary={gymExercise.secondaryMuscles}
-                />
-              )}
-            </div>
             <fieldset className={`${styles.group} ${styles.picker}`}>
               <legend className={styles.legend}>
                 운동 <span className={styles.count}>{partExercises.length}개</span>
@@ -343,6 +397,7 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
                       <span>{x.name}</span>
                       <span className={styles.met}>
                         {x.equipment ? `${equipmentLabel(x.equipment)} · ` : ''}MET {formatAmount(x.met)}
+                        {x.energySystem === 'MIXED' && ' · 무산소+유산소'}
                       </span>
                     </label>
                   ))}
@@ -350,6 +405,9 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
               )}
               {errors.exerciseId && <p className={ui.fieldError}>{errors.exerciseId}</p>}
             </fieldset>
+            {gymExercise && (
+              <MuscleMap name={gymExercise.name} primary={gymExercise.primaryMuscles} secondary={gymExercise.secondaryMuscles} />
+            )}
           </div>
 
           <div className={styles.row3}>
@@ -365,30 +423,48 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
         </>
       ) : (
         <>
-          {canDistance && (
-            <div className={styles.modes} role="radiogroup" aria-label="기록 방식">
+          <Field label="시간 (분)" type="number" inputMode="numeric" min={1} max={1440} step={1} value={minutes} onChange={(e) => setMinutes(e.target.value)} error={errors.minutes} required />
+          {canPace && (
+            <div className={styles.modes} role="radiogroup" aria-label="강도 기준">
               {(
                 [
-                  ['TIME', '시간'],
+                  ['LEVEL', '체감 강도'],
                   ['DISTANCE', '거리'],
+                  ['SPEED', '속도'],
                 ] as const
               ).map(([v, label]) => (
                 <label key={v} className={styles.mode}>
-                  <input type="radio" name={name + '-mode'} checked={mode === v} onChange={() => setMode(v)} />
+                  <input type="radio" name={name + '-basis'} checked={basis === v} onChange={() => setBasis(v)} />
                   {label}
                 </label>
               ))}
             </div>
           )}
-          {effectiveMode === 'DISTANCE' ? (
-            <div className={ui.row}>
-              <Field label="거리 (km)" type="number" inputMode="decimal" min={0.01} max={300} step="0.01" value={km} onChange={(e) => setKm(e.target.value)} error={errors.distanceKm} required />
-              <Field label="시간 (분, 선택)" type="number" inputMode="numeric" min={1} max={1440} value={minutes} onChange={(e) => setMinutes(e.target.value)} error={errors.minutes} placeholder="기록용" />
+          {effectiveBasis === 'LEVEL' && sportExercise && (
+            <div className={styles.levels} role="radiogroup" aria-label="강도">
+              {INTENSITIES.map((i) => (
+                <label key={i.value} className={styles.level}>
+                  <input type="radio" name={name + '-level'} checked={level === i.value} onChange={() => setLevel(i.value)} />
+                  <span>{i.label}</span>
+                  <span className={styles.met}>MET {formatAmount(levelMet(sportExercise, i.value))}</span>
+                </label>
+              ))}
             </div>
-          ) : (
-            <Field label="시간 (분)" type="number" inputMode="numeric" min={1} max={1440} step={1} value={minutes} onChange={(e) => setMinutes(e.target.value)} error={errors.minutes} required />
           )}
-          {!canDistance && sportExercise && <p className={ui.hint}>{sportExercise.name}은(는) 시간으로 기록해요.</p>}
+          {effectiveBasis === 'DISTANCE' && (
+            <Field label="거리 (km)" type="number" inputMode="decimal" min={0.01} max={300} step="0.01" value={km} onChange={(e) => setKm(e.target.value)} error={errors.distanceKm} required />
+          )}
+          {effectiveBasis === 'SPEED' && (
+            <Field label="속도 (km/h)" type="number" inputMode="decimal" min={0.5} max={80} step="0.1" value={speed} onChange={(e) => setSpeed(e.target.value)} error={errors.speedKmh} required />
+          )}
+          {effectiveBasis !== 'LEVEL' && pace && timeMet != null && (
+            <p className={ui.hint} data-testid="pace">
+              {effectiveBasis === 'DISTANCE' ? `평균 시속 ${formatAmount(pace.speed)}km` : `거리 약 ${formatAmount(pace.km)}km`} · 속도 기준 MET{' '}
+              {formatAmount(timeMet)}
+            </p>
+          )}
+          {!canPace && sportExercise && <p className={ui.hint}>{sportExercise.name}은(는) 시간과 체감 강도로 기록해요.</p>}
+          {errors.intensity && <p className={ui.fieldError}>{errors.intensity}</p>}
         </>
       )}
 
@@ -404,7 +480,7 @@ function WorkoutFormInner({ date, editing, weightKg, onDone, onCancel, exercises
       </p>
       {editing && (
         <p className={ui.hint}>
-          수정해도 기록 당시 체중({formatAmount(editing.weightKgSnapshot)}kg)을 유지하고, 종목을 바꿀 때만 새 MET를 적용해요.
+          수정해도 기록 당시 체중({formatAmount(editing.weightKgSnapshot)}kg)을 유지하고, 종목이나 강도를 바꿀 때만 새 MET를 적용해요.
         </p>
       )}
       {(errors.mode || showFormError) && (

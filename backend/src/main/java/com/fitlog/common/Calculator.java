@@ -100,6 +100,43 @@ public final class Calculator {
         return kcalPerKgKm.multiply(weightKg).multiply(km);
     }
 
+    /**
+     * 속도(km/h)에 맞는 MET. 곡선은 "속도:MET" 점을 쉼표로 이은 문자열("6.4:6.0,8.0:8.3")이고,
+     * 점 사이는 직선으로 잇고 양 끝 밖은 끝점 값을 쓴다. 소수 둘째 자리까지.
+     */
+    public static BigDecimal metForSpeed(String curve, BigDecimal speedKmh) {
+        double v = speedKmh.doubleValue();
+        double[][] pts = java.util.Arrays.stream(curve.split(","))
+                .map(p -> p.trim().split(":"))
+                .map(p -> new double[] {Double.parseDouble(p[0]), Double.parseDouble(p[1])})
+                .toArray(double[][]::new);
+        double met;
+        if (v <= pts[0][0]) {
+            met = pts[0][1];
+        } else if (v >= pts[pts.length - 1][0]) {
+            met = pts[pts.length - 1][1];
+        } else {
+            int i = 1;
+            while (pts[i][0] < v) {
+                i++;
+            }
+            double[] a = pts[i - 1];
+            double[] b = pts[i];
+            met = a[1] + (b[1] - a[1]) * (v - a[0]) / (b[0] - a[0]);
+        }
+        return BigDecimal.valueOf(met).setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** 평균 속도(km/h) = 거리 ÷ (분 ÷ 60). 소수 둘째 자리까지. */
+    public static BigDecimal speedKmh(BigDecimal km, int minutes) {
+        return km.multiply(BigDecimal.valueOf(60)).divide(BigDecimal.valueOf(minutes), 2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** 거리 = 속도 × 분 ÷ 60. 소수 둘째 자리까지. */
+    public static BigDecimal distanceKm(BigDecimal speedKmh, int minutes) {
+        return speedKmh.multiply(BigDecimal.valueOf(minutes)).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
+    }
+
     /** 볼륨 = 세트 × 횟수 × 무게kg. */
     public static BigDecimal volume(int sets, int reps, BigDecimal liftedKg) {
         return liftedKg.multiply(BigDecimal.valueOf((long) sets * reps));
