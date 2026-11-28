@@ -4,6 +4,7 @@ import com.fitlog.common.ApiException;
 import com.fitlog.food.Food;
 import com.fitlog.food.FoodRepository;
 import com.fitlog.food.FoodResponse;
+import com.fitlog.food.HiddenFoodRepository;
 import com.fitlog.foodsafety.BarcodeProduct;
 import com.fitlog.foodsafety.FoodSafetyClient;
 import com.fitlog.mfds.BarcodeLookupResponse.Match;
@@ -33,9 +34,11 @@ public class MfdsFoodService {
     private final MfdsCandidateCache cache;
     private final FoodRepository foods;
     private final FoodSafetyClient foodSafety;
+    private final HiddenFoodRepository hidden;
 
     public MfdsFoodService(MfdsClient client, MfdsCandidateCache cache, FoodRepository foods,
-                           FoodSafetyClient foodSafety) {
+                           FoodSafetyClient foodSafety, HiddenFoodRepository hidden) {
+        this.hidden = hidden;
         this.client = client;
         this.cache = cache;
         this.foods = foods;
@@ -146,13 +149,15 @@ public class MfdsFoodService {
      * 당류·나트륨·포화지방이 비어 있던 예전 음식은 검색 결과가 남아 있으면 그 값으로 채운다.
      */
     @Transactional
-    public FoodResponse importFood(String externalCode) {
+    public FoodResponse importFood(Long userId, String externalCode) {
         String code = externalCode.strip();
         return foods.findByExternalCode(code)
                 .map(existing -> {
                     if (!existing.getLimits().complete()) {
                         cache.get(code).ifPresent(c -> existing.withLimits(existing.getLimits().orElse(c.limits())));
                     }
+                    // 내 목록에서 지웠던 음식을 다시 고르면 되살린다
+                    hidden.unhide(userId, existing.getId());
                     return FoodResponse.from(existing);
                 })
                 .orElseGet(() -> {

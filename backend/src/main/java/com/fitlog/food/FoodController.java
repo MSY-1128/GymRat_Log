@@ -9,7 +9,9 @@ import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,5 +45,12 @@ public class FoodController {
     @ResponseStatus(HttpStatus.CREATED)
     public FoodResponse create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody FoodRequest request) {
         return service.create(user.id(), request);
+    }
+
+    /** 내 음식 목록에서 지운다(지난 식단 기록은 그대로). */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
+        service.delete(user.id(), id);
     }
 }

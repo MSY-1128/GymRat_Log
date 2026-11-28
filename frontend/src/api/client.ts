@@ -141,6 +141,7 @@ export const api = {
   searchExternalFoods: (query: string, page: number, kind: MfdsKind, maker = '') =>
     request<ExternalFoodPage>('/foods/external' + q({ q: query, page, kind, ...(maker ? { maker } : {}) })),
   lookupBarcode: (code: string) => request<BarcodeLookup>('/foods/barcode/' + encodeURIComponent(code)),
+  deleteFood: (id: number) => request<null>(`/foods/${id}`, { method: 'DELETE' }),
   importFood: (externalCode: string) => request<Food>('/foods/import', json('POST', { externalCode })),
 
   getExercises: () => request<Exercise[]>('/exercises'),

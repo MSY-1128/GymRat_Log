@@ -59,7 +59,13 @@
 | POST | /foods | `name`, `kcal`, `carbsG`, `proteinG`, `fatG`(100g 기준), `servingGrams`(nullable), 선택 `sugarsG`(0~100), `sodiumMg`(0~40000), `saturatedFatG`(0~100) |
 | GET | /foods/external?q=&page=0&kind=GENERIC&maker= | 식약처 식품영양성분DB 검색. `kind`: `ALL`·`GENERIC`(일반 음식)·`BRAND`(외식·브랜드 메뉴), `maker`: 브랜드명 |
 | GET | /foods/barcode/{code} | 식품안전나라 바코드 조회. `{barcode, product, match, items}` |
-| POST | /foods/import | `externalCode`. 검색·조회 결과의 식품을 내 음식으로 가져온다 |
+| POST | /foods/import | `externalCode`. 검색·조회 결과의 식품을 내 음식으로 가져온다. 지웠던 식품이면 목록에 되살린다 |
+| DELETE | /foods/{id} | 204. 내 음식 목록에서 지운다. 지난 식단 기록은 그대로 남는다 |
+
+- **삭제 방식**
+  - 내가 직접 등록했고 식단 기록에 쓰이지 않은 음식은 행을 지운다.
+  - 식약처에서 가져온 음식(다른 사용자와 공유)과 기록에 쓰인 음식은 이 사용자의 목록에서만 숨긴다.
+  - 샘플(DEMO) 음식은 지울 수 없다(409 `DEMO_FOOD`). 남의 음식은 404다.
 
 - `match` 값
   - `REPORT_NO`: 품목보고번호로 정확히 연결됨

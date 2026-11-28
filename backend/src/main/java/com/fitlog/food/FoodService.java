@@ -4,6 +4,7 @@ import com.fitlog.common.ApiException;
 import com.fitlog.common.PageResponse;
 import com.fitlog.common.Source;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +13,29 @@ import org.springframework.transaction.annotation.Transactional;
 public class FoodService {
 
     private final FoodRepository repository;
+    private final HiddenFoodRepository hidden;
 
-    public FoodService(FoodRepository repository) {
+    public FoodService(FoodRepository repository, HiddenFoodRepository hidden) {
         this.repository = repository;
+        this.hidden = hidden;
+    }
+
+    /**
+     * 내 음식 목록에서 지운다. 내가 직접 등록했고 식단 기록에 쓰이지 않은 음식은 행을 지우고,
+     * 식약처에서 가져온 공유 음식이나 지난 기록이 쓰는 음식은 이 사용자에게만 숨긴다(기록은 그대로).
+     * 샘플(DEMO) 음식은 지울 수 없다.
+     */
+    @Transactional
+    public void delete(Long userId, Long id) {
+        Food food = getVisible(userId, id);
+        if (food.getSource() == Source.DEMO) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEMO_FOOD", "기본 샘플 음식은 지울 수 없어요.");
+        }
+        if (food.getSource() == Source.USER && !repository.isUsedByMeals(id)) {
+            repository.delete(food);
+        } else {
+            hidden.hide(userId, id);
+        }
     }
 
     @Transactional(readOnly = true)

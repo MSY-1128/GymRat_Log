@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import type { ExternalFood } from '../api/types';
 import { createFakeServer, renderWithProviders } from '../test/utils';
@@ -86,6 +86,39 @@ describe('식약처 DB 연동', () => {
         grams: 250,
       }),
     );
+  });
+
+  it('deletes an imported food from my foods and brings it back when picked again', async () => {
+    const { state } = createFakeServer();
+    state.external = [ext({})];
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    const form = await openMfds(user);
+    await user.type(within(form).getByLabelText('식약처 DB 검색어'), '현미밥');
+    await user.click(within(form).getByRole('button', { name: '검색' }));
+    const results = await screen.findByRole('list', { name: '식약처 DB 검색 결과' });
+    await user.click(within(results).getByRole('button', { name: '현미밥 가져와서 선택' }));
+    expect(await screen.findByText('현미밥', { selector: 'strong' })).toBeInTheDocument();
+    const imported = state.foods.find((f) => f.source === 'MFDS')!;
+
+    // 샘플(DEMO) 음식에는 삭제 버튼이 없다
+    expect(await screen.findByRole('button', { name: '현미밥 내 음식에서 삭제' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '닭가슴살 내 음식에서 삭제' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '현미밥 내 음식에서 삭제' }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('지난 식단 기록은 그대로 남아요.'));
+    expect(await screen.findByText("'현미밥'을(를) 내 음식에서 삭제했어요.")).toBeInTheDocument();
+    expect(state.calls.some((c) => c.method === 'DELETE' && c.path === `/foods/${imported.id}`)).toBe(true);
+    // 선택도 풀리고 목록에서 빠진다
+    expect(screen.queryByText('현미밥', { selector: 'strong' })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: '현미밥 내 음식에서 삭제' })).not.toBeInTheDocument(),
+    );
+
+    // 식약처 검색에서 다시 고르면 돌아온다
+    await user.click(within(results).getByRole('button', { name: '현미밥 선택' }));
+    expect(await screen.findByRole('button', { name: '현미밥 내 음식에서 삭제' })).toBeInTheDocument();
+    confirm.mockRestore();
   });
 
   it('shows the server message when the key is not configured', async () => {

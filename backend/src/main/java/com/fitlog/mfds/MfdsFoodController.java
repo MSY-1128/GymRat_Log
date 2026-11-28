@@ -1,6 +1,8 @@
 package com.fitlog.mfds;
 
+import com.fitlog.auth.AuthUser;
 import com.fitlog.food.FoodResponse;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -45,7 +47,8 @@ public class MfdsFoodController {
     }
 
     @PostMapping("/import")
-    public FoodResponse importFood(@Valid @RequestBody ImportFoodRequest request) {
-        return service.importFood(request.externalCode());
+    public FoodResponse importFood(@AuthenticationPrincipal AuthUser user,
+                                   @Valid @RequestBody ImportFoodRequest request) {
+        return service.importFood(user.id(), request.externalCode());
     }
 }

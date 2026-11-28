@@ -1,10 +1,10 @@
 import { useId, useState } from 'react';
-import { useFoods } from '../api/hooks';
+import { useDeleteFood, useFoods } from '../api/hooks';
 import type { Food } from '../api/types';
 import { formatAmount, formatKcal } from '../lib/format';
 import { useDebounced } from '../lib/useDebounced';
 import ui from '../styles/ui.module.css';
-import { Empty, ErrorState, Loading } from './QueryState';
+import { Empty, ErrorState, errorMessage, Loading } from './QueryState';
 import styles from './FoodPicker.module.css';
 
 export type PickedFood = Pick<Food, 'id' | 'name' | 'servingGrams'> & Partial<Food>;
@@ -12,18 +12,38 @@ export type PickedFood = Pick<Food, 'id' | 'name' | 'servingGrams'> & Partial<Fo
 interface Props {
   selected: PickedFood | null;
   onSelect: (food: PickedFood) => void;
+  /** 선택된 음식을 목록에서 지웠을 때 */
+  onRemoved?: () => void;
   error?: string;
 }
 
 const MAX_QUERY = 50;
 
-export function FoodPicker({ selected, onSelect, error }: Props) {
+export function FoodPicker({ selected, onSelect, onRemoved, error }: Props) {
   const [text, setText] = useState('');
   const [page, setPage] = useState(0);
   const q = useDebounced(text.trim(), 300);
   const foods = useFoods(q, page);
   const inputId = useId();
   const groupName = useId();
+
+  const del = useDeleteFood();
+  const [status, setStatus] = useState('');
+
+  /** 내 음식 목록에서 지운다. 지난 식단 기록은 남고, 식약처 음식은 DB 검색에서 다시 고르면 돌아온다. */
+  const remove = (f: Food) => {
+    const note = f.source === 'MFDS' ? '\n식약처 DB 검색에서 다시 고르면 돌아와요.' : '';
+    if (!window.confirm(`'${f.name}'을(를) 내 음식에서 삭제할까요?\n지난 식단 기록은 그대로 남아요.${note}`)) return;
+    setStatus('');
+    del.mutate(f.id, {
+      onSuccess: () => {
+        setStatus(`'${f.name}'을(를) 내 음식에서 삭제했어요.`);
+        if (selected?.id === f.id) onRemoved?.();
+        // 마지막 항목을 지워 빈 페이지가 되면 앞 페이지로
+        if (foods.data && foods.data.items.length === 1 && page > 0) setPage((p) => p - 1);
+      },
+    });
+  };
 
   const totalPages = foods.data ? Math.max(1, Math.ceil(foods.data.totalElements / foods.data.size)) : 1;
 
@@ -58,24 +78,37 @@ export function FoodPicker({ selected, onSelect, error }: Props) {
           <legend className="visually-hidden">음식 선택 (100g 기준)</legend>
           <div className={styles.results}>
             {foods.data.items.map((f) => (
-              <label key={f.id} className={styles.option}>
-                <input
-                  type="radio"
-                  name={groupName}
-                  value={f.id}
-                  checked={selected?.id === f.id}
-                  onChange={() => onSelect(f)}
-                />
-                <span className={styles.optionName}>
-                  {f.name}
-                  {f.source === 'DEMO' && <span className={ui.badge}>DEMO</span>}
-                  {f.source === 'MFDS' && <span className={ui.badge}>식약처</span>}
-                </span>
-                <span className={styles.optionMeta}>
-                  {f.volumeBased ? '100mL≈g' : '100g'} {formatKcal(f.kcal)} kcal
-                  {f.servingGrams != null && ` · 1인분 ${formatAmount(f.servingGrams)}g`}
-                </span>
-              </label>
+              <div key={f.id} className={styles.row}>
+                <label className={styles.option}>
+                  <input
+                    type="radio"
+                    name={groupName}
+                    value={f.id}
+                    checked={selected?.id === f.id}
+                    onChange={() => onSelect(f)}
+                  />
+                  <span className={styles.optionName}>
+                    {f.name}
+                    {f.source === 'DEMO' && <span className={ui.badge}>DEMO</span>}
+                    {f.source === 'MFDS' && <span className={ui.badge}>식약처</span>}
+                  </span>
+                  <span className={styles.optionMeta}>
+                    {f.volumeBased ? '100mL≈g' : '100g'} {formatKcal(f.kcal)} kcal
+                    {f.servingGrams != null && ` · 1인분 ${formatAmount(f.servingGrams)}g`}
+                  </span>
+                </label>
+                {f.source !== 'DEMO' && (
+                  <button
+                    type="button"
+                    className={`${ui.secondary} ${ui.small} ${ui.dangerText}`}
+                    onClick={() => remove(f)}
+                    disabled={del.isPending}
+                    aria-label={`${f.name} 내 음식에서 삭제`}
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
             ))}
           </div>
           {totalPages > 1 && (
@@ -108,6 +141,14 @@ export function FoodPicker({ selected, onSelect, error }: Props) {
           선택됨: <strong>{selected.name}</strong>
         </p>
       )}
+      {del.isError && (
+        <p className={ui.formError} role="alert">
+          {errorMessage(del.error)}
+        </p>
+      )}
+      <p className={ui.status} role="status">
+        {status}
+      </p>
     </div>
   );
 }

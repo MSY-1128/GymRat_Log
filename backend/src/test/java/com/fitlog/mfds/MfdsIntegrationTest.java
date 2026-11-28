@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -238,6 +239,58 @@ class MfdsIntegrationTest {
                 + ",\"grams\":200}")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.calculatedKcal").value(258.0));
+
+        // 내 음식에서 삭제: 공유 음식이라 행은 남기고 이 사용자에게만 숨긴다. 지난 식단 기록은 그대로
+        mvc.perform(delete("/api/v1/foods/" + foodId)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/foods").param("q", "순 현미"))
+                .andExpect(jsonPath("$.totalElements").value(0));
+        org.assertj.core.api.Assertions.assertThat(
+                jdbc.queryForObject("SELECT count(*) FROM meal_entry WHERE food_id = ?", Integer.class, foodId))
+                .isEqualTo(1);
+        // 다른 사용자 목록에는 남아 있다
+        TestUsers.mvcAs(ctx, TestUsers.create(jdbc, "other"))
+                .perform(get("/api/v1/foods").param("q", "순 현미"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+        // 식약처 검색에서 다시 고르면 되살아난다
+        postJson("/api/v1/foods/import", "{\"externalCode\":\"D501-072000000-0001\"}")
+                .andExpect(jsonPath("$.id").value(foodId));
+        mvc.perform(get("/api/v1/foods").param("q", "순 현미"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void deletesOwnFoodButNotDemoFood() throws Exception {
+        String body = postJson("/api/v1/foods", "{\"name\":\"내 샐러드\",\"kcal\":80,\"carbsG\":10,\"proteinG\":3,"
+                + "\"fatG\":3}").andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        int unused = JsonPath.read(body, "$.id");
+        // 기록에 안 쓰인 내 음식은 행을 지운다
+        mvc.perform(delete("/api/v1/foods/" + unused)).andExpect(status().isNoContent());
+        org.assertj.core.api.Assertions.assertThat(
+                jdbc.queryForObject("SELECT count(*) FROM food WHERE id = ?", Integer.class, unused)).isZero();
+        mvc.perform(delete("/api/v1/foods/" + unused)).andExpect(status().isNotFound());
+
+        // 기록에 쓰인 내 음식은 숨기기만 한다
+        body = postJson("/api/v1/foods", "{\"name\":\"내 볶음밥\",\"kcal\":180,\"carbsG\":25,\"proteinG\":5,"
+                + "\"fatG\":6}").andReturn().getResponse().getContentAsString();
+        int used = JsonPath.read(body, "$.id");
+        postJson("/api/v1/meals", "{\"date\":\"2026-11-21\",\"mealType\":\"LUNCH\",\"foodId\":" + used
+                + ",\"grams\":100}").andExpect(status().isCreated());
+        mvc.perform(delete("/api/v1/foods/" + used)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/foods").param("q", "내 볶음밥")).andExpect(jsonPath("$.totalElements").value(0));
+        org.assertj.core.api.Assertions.assertThat(
+                jdbc.queryForObject("SELECT count(*) FROM food WHERE id = ?", Integer.class, used)).isEqualTo(1);
+
+        // 남의 음식은 없는 것(404), 샘플 음식은 지울 수 없다(409)
+        int others = jdbc.queryForObject("INSERT INTO food (name, kcal, carbs_g, protein_g, fat_g, source, owner_id, "
+                + "volume_based, created_at, updated_at) VALUES ('남의 음식', 1, 0, 0, 0, 'USER', ?, false, now(), now()) "
+                + "RETURNING id", Integer.class, TestUsers.create(jdbc, "stranger").id());
+        mvc.perform(delete("/api/v1/foods/" + others)).andExpect(status().isNotFound());
+        int demo = jdbc.queryForObject("INSERT INTO food (name, kcal, carbs_g, protein_g, fat_g, source, volume_based, "
+                + "created_at, updated_at) VALUES ('샘플 사과', 52, 14, 0.3, 0.2, 'DEMO', false, now(), now()) "
+                + "RETURNING id", Integer.class);
+        mvc.perform(delete("/api/v1/foods/" + demo))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DEMO_FOOD"));
     }
 
     @Test

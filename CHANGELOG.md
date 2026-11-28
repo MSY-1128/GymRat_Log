@@ -4,9 +4,16 @@
 
 - 괄호 안은 해당 커밋이다.
 - API 상세는 [API.md](API.md), 실행 방법은 [README.md](README.md)를 본다.
-- DB 변경은 `backend/src/main/resources/db/migration`의 Flyway 버전(V1~V9)으로 남는다.
+- DB 변경은 `backend/src/main/resources/db/migration`의 Flyway 버전(V1~V10)으로 남는다.
 
 ## 2026-11-28
+
+### 내 음식 삭제
+- 식단 탭의 음식 목록에서 식약처 DB로 가져온 음식과 직접 등록한 음식을 지울 수 있다(`DELETE /foods/{id}`).
+- 지난 식단 기록은 그대로 남는다.
+  - 식약처 음식은 다른 사용자와 공유하므로 내 목록에서만 숨기고(V10 `hidden_food`), 식약처 검색에서 다시 고르면 돌아온다.
+  - 직접 등록한 음식은 기록에 쓰이지 않았으면 지우고, 쓰였으면 숨긴다.
+- 샘플(DEMO) 음식은 지울 수 없다.
 
 ### 인바디 결과지 입력·정형화와 체성분 기준 식단표
 - **인바디 결과지 항목**(V9): 체성분 입력을 결과지 순서로 바꿨다.

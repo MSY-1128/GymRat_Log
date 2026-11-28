@@ -277,6 +277,7 @@ function MealForm({ date, editing, mealType, onMealTypeChange, onDone, onCancel 
             setFood(f);
             if (f.servingGrams == null) setUnit('g');
           }}
+          onRemoved={() => setFood(null)}
           error={errors.foodId}
         />
       </div>

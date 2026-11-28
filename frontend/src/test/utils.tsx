@@ -165,6 +165,8 @@ export function createFakeServer() {
       { id: 1, name: '현미밥', kcal: 150, carbsG: 32, proteinG: 3, fatG: 1, servingGrams: 210, source: 'DEMO', volumeBased: false, sugarsG: 0.2, sodiumMg: 2, saturatedFatG: 0.2 },
       { id: 2, name: '닭가슴살', kcal: 165, carbsG: 0, proteinG: 31, fatG: 3.6, servingGrams: null, source: 'DEMO', volumeBased: false, sugarsG: null, sodiumMg: null, saturatedFatG: null },
     ] as Food[],
+    /** 내 음식 목록에서 지운(숨긴) 음식 ID */
+    hiddenFoods: new Set<number>(),
     /** 식약처 DB 검색 결과(서버가 정규화한 형태) */
     external: [] as ExternalFood[],
     /** 바코드 조회 결과(서버 응답 형태) */
@@ -364,7 +366,7 @@ export function createFakeServer() {
     if (method === 'GET' && path === '/exercises') return json(200, state.exercises);
     if (method === 'GET' && path === '/foods') {
       const q = url.searchParams.get('q') ?? '';
-      const items = state.foods.filter((f) => f.name.includes(q));
+      const items = state.foods.filter((f) => f.name.includes(q) && !state.hiddenFoods.has(f.id));
       return json(200, { items, page: 0, size: 10, totalElements: items.length });
     }
     if (method === 'GET' && path === '/foods/external') {
@@ -397,7 +399,10 @@ export function createFakeServer() {
       );
       if (!ext) return json(409, { code: 'MFDS_SEARCH_EXPIRED', message: '검색 결과가 만료되었어요.', fieldErrors: {} });
       const existing = state.foods.find((f) => f.id === ext.importedFoodId);
-      if (existing) return json(200, existing);
+      if (existing) {
+        state.hiddenFoods.delete(existing.id);
+        return json(200, existing);
+      }
       const food: Food = {
         id: state.nextId++,
         name: ext.name,
@@ -441,6 +446,16 @@ export function createFakeServer() {
       };
       state.meals.push(entry);
       return json(201, entry);
+    }
+    const delFood = /^\/foods\/(\d+)$/.exec(path);
+    if (method === 'DELETE' && delFood) {
+      const food = state.foods.find((f) => f.id === Number(delFood[1]));
+      if (!food) return json(404, { code: 'NOT_FOUND', message: '음식을(를) 찾을 수 없습니다.', fieldErrors: {} });
+      if (food.source === 'DEMO') {
+        return json(409, { code: 'DEMO_FOOD', message: '기본 샘플 음식은 지울 수 없어요.', fieldErrors: {} });
+      }
+      state.hiddenFoods.add(food.id);
+      return json(204, null);
     }
     const delMeal = /^\/meals\/(\d+)$/.exec(path);
     if (method === 'DELETE' && delMeal) {

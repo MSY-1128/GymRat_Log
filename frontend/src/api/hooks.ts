@@ -171,6 +171,15 @@ export function useCreateFood() {
   });
 }
 
+/** 내 음식 목록에서 지운다(식약처 음식은 숨김, 지난 식단 기록은 그대로). */
+export function useDeleteFood() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (id: number) => api.deleteFood(id),
+    onSuccess: () => invalidate('foods'),
+  });
+}
+
 export function useImportFood() {
   const invalidate = useInvalidate();
   return useMutation({

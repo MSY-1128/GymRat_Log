@@ -18,6 +18,7 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
             select f from Food f
             where (f.source <> :userSource or f.ownerId = :userId)
               and lower(f.name) like lower(concat('%', :pattern, '%')) escape '\\'
+              and not exists (select 1 from HiddenFood h where h.userId = :userId and h.foodId = f.id)
             """)
     Page<Food> searchVisible(@Param("pattern") String pattern, @Param("userId") Long userId,
                              @Param("userSource") Source userSource, Pageable pageable);
@@ -31,4 +32,7 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
     List<Food> findByExternalCodeIn(Collection<String> externalCodes);
 
     long countBySourceNot(Source source);
+
+    @Query("select count(m) > 0 from MealEntry m where m.food.id = :foodId")
+    boolean isUsedByMeals(@Param("foodId") Long foodId);
 }
