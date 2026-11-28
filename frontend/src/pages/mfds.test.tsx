@@ -88,7 +88,7 @@ describe('식약처 DB 연동', () => {
     );
   });
 
-  it('deletes an imported food from my foods and brings it back when picked again', async () => {
+  it('deletes an imported food from the MFDS results and lets it be picked again', async () => {
     const { state } = createFakeServer();
     state.external = [ext({})];
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -101,23 +101,23 @@ describe('식약처 DB 연동', () => {
     expect(await screen.findByText('현미밥', { selector: 'strong' })).toBeInTheDocument();
     const imported = state.foods.find((f) => f.source === 'MFDS')!;
 
-    // 샘플(DEMO) 음식에는 삭제 버튼이 없다
-    expect(await screen.findByRole('button', { name: '현미밥 내 음식에서 삭제' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '닭가슴살 내 음식에서 삭제' })).not.toBeInTheDocument();
+    // 가져오기 전에는 삭제 버튼이 없고, 가져온 뒤 검색 결과에 생긴다. 위쪽 음식 검색 목록에는 없다
+    const del = await within(results).findByRole('button', { name: '현미밥 내 음식에서 삭제' });
+    expect(screen.getAllByRole('button', { name: /내 음식에서 삭제/ })).toHaveLength(1);
 
-    await user.click(screen.getByRole('button', { name: '현미밥 내 음식에서 삭제' }));
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('지난 식단 기록은 그대로 남아요.'));
+    await user.click(del);
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('다시 가져와서 선택할 수 있어요.'));
     expect(await screen.findByText("'현미밥'을(를) 내 음식에서 삭제했어요.")).toBeInTheDocument();
     expect(state.calls.some((c) => c.method === 'DELETE' && c.path === `/foods/${imported.id}`)).toBe(true);
-    // 선택도 풀리고 목록에서 빠진다
+    // 선택이 풀리고, 결과는 다시 '가져와서 선택'으로 돌아간다
     expect(screen.queryByText('현미밥', { selector: 'strong' })).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: '현미밥 내 음식에서 삭제' })).not.toBeInTheDocument(),
-    );
+    const again = await within(results).findByRole('button', { name: '현미밥 가져와서 선택' });
+    expect(within(results).queryByRole('button', { name: '현미밥 내 음식에서 삭제' })).not.toBeInTheDocument();
 
-    // 식약처 검색에서 다시 고르면 돌아온다
-    await user.click(within(results).getByRole('button', { name: '현미밥 선택' }));
-    expect(await screen.findByRole('button', { name: '현미밥 내 음식에서 삭제' })).toBeInTheDocument();
+    // 다시 고르면 다시 선택된다
+    await user.click(again);
+    expect(await screen.findByText('현미밥', { selector: 'strong' })).toBeInTheDocument();
+    expect(await within(results).findByRole('button', { name: '현미밥 내 음식에서 삭제' })).toBeInTheDocument();
     confirm.mockRestore();
   });
 

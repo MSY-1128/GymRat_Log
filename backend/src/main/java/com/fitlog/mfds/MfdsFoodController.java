@@ -31,19 +31,21 @@ public class MfdsFoodController {
 
     @GetMapping("/external")
     public ExternalFoodPage search(
+            @AuthenticationPrincipal AuthUser user,
             @RequestParam(defaultValue = "") @Size(max = 50, message = "검색어는 50자 이하로 입력해 주세요.") String q,
             @RequestParam(defaultValue = "0") @Min(value = 0, message = "0 이상이어야 합니다.")
             @Max(value = 999, message = "999 이하여야 합니다.") int page,
             @RequestParam(defaultValue = "GENERIC") MfdsKind kind,
             @RequestParam(defaultValue = "") @Size(max = 30, message = "브랜드는 30자 이하로 입력해 주세요.") String maker) {
-        return service.search(q, page, kind, maker);
+        return service.search(user.id(), q, page, kind, maker);
     }
 
     /** 바코드(EAN-8/13, UPC-A, GTIN-14 등 숫자 8~14자리) → 영양성분 후보. */
     @GetMapping("/barcode/{code}")
     public BarcodeLookupResponse barcode(
+            @AuthenticationPrincipal AuthUser user,
             @PathVariable @Pattern(regexp = "\\d{8,14}", message = "바코드는 숫자 8~14자리로 입력해 주세요.") String code) {
-        return service.lookupBarcode(code);
+        return service.lookupBarcode(user.id(), code);
     }
 
     @PostMapping("/import")

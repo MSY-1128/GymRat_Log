@@ -277,7 +277,6 @@ function MealForm({ date, editing, mealType, onMealTypeChange, onDone, onCancel 
             setFood(f);
             if (f.servingGrams == null) setUnit('g');
           }}
-          onRemoved={() => setFood(null)}
           error={errors.foodId}
         />
       </div>
@@ -344,7 +343,10 @@ function MealForm({ date, editing, mealType, onMealTypeChange, onDone, onCancel 
     <details className={styles.custom}>
       <summary>식약처 식품영양성분DB에서 찾기</summary>
       <div className={styles.customBody}>
-        <ExternalFoodSearch onImported={pickNewFood} />
+        <ExternalFoodSearch
+          onImported={pickNewFood}
+          onRemoved={(id) => setFood((cur) => (cur?.id === id ? null : cur))}
+        />
       </div>
     </details>
     <details className={styles.custom}>

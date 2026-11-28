@@ -372,7 +372,12 @@ export function createFakeServer() {
     if (method === 'GET' && path === '/foods/external') {
       const q = url.searchParams.get('q') ?? '';
       const maker = url.searchParams.get('maker') ?? '';
-      const items = state.external.filter((f) => f.name.includes(q) && (f.makerName ?? '').includes(maker));
+      // 내 음식에서 지운 식품은 가져오지 않은 것으로 보인다
+      const items = state.external
+        .filter((f) => f.name.includes(q) && (f.makerName ?? '').includes(maker))
+        .map((f) =>
+          f.importedFoodId != null && state.hiddenFoods.has(f.importedFoodId) ? { ...f, importedFoodId: null } : f,
+        );
       return json(200, { items, page: 0, size: 20, totalElements: items.length, excluded: 0 });
     }
     if (method === 'GET' && path.startsWith('/foods/barcode/')) {

@@ -251,11 +251,16 @@ class MfdsIntegrationTest {
         TestUsers.mvcAs(ctx, TestUsers.create(jdbc, "other"))
                 .perform(get("/api/v1/foods").param("q", "순 현미"))
                 .andExpect(jsonPath("$.totalElements").value(1));
-        // 식약처 검색에서 다시 고르면 되살아난다
+        // 다시 검색하면 가져오지 않은 것으로 보여 '가져와서 선택'할 수 있다
+        mvc.perform(get("/api/v1/foods/external").param("q", "현미밥"))
+                .andExpect(jsonPath("$.items[1].importedFoodId").value(nullValue()));
+        // 다시 고르면 같은 음식으로 되살아난다
         postJson("/api/v1/foods/import", "{\"externalCode\":\"D501-072000000-0001\"}")
                 .andExpect(jsonPath("$.id").value(foodId));
         mvc.perform(get("/api/v1/foods").param("q", "순 현미"))
                 .andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get("/api/v1/foods/external").param("q", "현미밥"))
+                .andExpect(jsonPath("$.items[1].importedFoodId").value(foodId));
     }
 
     @Test

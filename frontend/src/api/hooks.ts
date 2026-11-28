@@ -171,12 +171,12 @@ export function useCreateFood() {
   });
 }
 
-/** 내 음식 목록에서 지운다(식약처 음식은 숨김, 지난 식단 기록은 그대로). */
+/** 식약처에서 가져온 음식을 내 음식에서 지운다(지난 식단 기록은 그대로). 검색 결과는 다시 '가져와서 선택'으로. */
 export function useDeleteFood() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (id: number) => api.deleteFood(id),
-    onSuccess: () => invalidate('foods'),
+    onSuccess: () => invalidate('foods', 'external-foods', 'barcode'),
   });
 }
 

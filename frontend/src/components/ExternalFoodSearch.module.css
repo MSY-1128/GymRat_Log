@@ -127,6 +127,23 @@
   flex-shrink: 0;
 }
 
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  .actions {
+    flex-direction: row;
+  }
+  .actions button {
+    flex: 1;
+  }
+}
+
 @media (max-width: 520px) {
   .item {
     flex-direction: column;

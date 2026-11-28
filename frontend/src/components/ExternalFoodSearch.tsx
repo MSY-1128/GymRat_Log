@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
-import { useBarcodeLookup, useExternalFoods, useImportFood } from '../api/hooks';
+import { useBarcodeLookup, useDeleteFood, useExternalFoods, useImportFood } from '../api/hooks';
 import type { BarcodeLookup, ExternalFood, Food, MfdsKind } from '../api/types';
 import { formatAmount, formatGram, formatKcal } from '../lib/format';
 import ui from '../styles/ui.module.css';
@@ -9,6 +9,8 @@ import styles from './ExternalFoodSearch.module.css';
 
 interface Props {
   onImported: (food: Food) => void;
+  /** 가져온 음식을 지웠을 때(선택돼 있었다면 풀기 위해) */
+  onRemoved?: (foodId: number) => void;
 }
 
 type Mode = 'name' | 'barcode';
@@ -32,12 +34,31 @@ const MATCH_NOTE: Record<BarcodeLookup['match'], string> = {
 };
 
 /** 식약처 식품영양성분DB(이름·브랜드) 또는 바코드(식품안전나라)로 찾아 내 음식으로 가져와 바로 선택. */
-export function ExternalFoodSearch({ onImported }: Props) {
+export function ExternalFoodSearch({ onImported, onRemoved }: Props) {
   const [mode, setMode] = useState<Mode>('name');
   const [status, setStatus] = useState('');
   const [importError, setImportError] = useState('');
   const importFood = useImportFood();
+  const deleteFood = useDeleteFood();
   const id = useId();
+
+  /** 가져온 음식을 내 음식에서 지운다. 결과는 다시 '가져와서 선택'으로 돌아가 언제든 다시 고를 수 있다. */
+  const remove = (item: ExternalFood) => {
+    const foodId = item.importedFoodId;
+    if (foodId == null) return;
+    if (!window.confirm(`'${item.name}'을(를) 내 음식에서 삭제할까요?\n지난 식단 기록은 그대로 남고, 다시 가져와서 선택할 수 있어요.`)) {
+      return;
+    }
+    setStatus('');
+    setImportError('');
+    deleteFood.mutate(foodId, {
+      onSuccess: () => {
+        setStatus(`'${item.name}'을(를) 내 음식에서 삭제했어요.`);
+        onRemoved?.(foodId);
+      },
+      onError: (err) => setImportError(errorMessage(err)),
+    });
+  };
 
   const pick = (item: ExternalFood, refetch: () => unknown) => {
     setStatus('');
@@ -54,6 +75,8 @@ export function ExternalFoodSearch({ onImported }: Props) {
       },
     });
   };
+
+  const busy = importFood.isPending || deleteFood.isPending;
 
   const reset = () => {
     setStatus('');
@@ -86,9 +109,9 @@ export function ExternalFoodSearch({ onImported }: Props) {
       </div>
 
       {mode === 'name' ? (
-        <NameSearch onPick={pick} onSubmit={reset} busy={importFood.isPending} />
+        <NameSearch onPick={pick} onRemove={remove} onSubmit={reset} busy={busy} />
       ) : (
-        <BarcodeSearch onPick={pick} onSubmit={reset} busy={importFood.isPending} />
+        <BarcodeSearch onPick={pick} onRemove={remove} onSubmit={reset} busy={busy} />
       )}
 
       {importError && (
@@ -109,11 +132,12 @@ export function ExternalFoodSearch({ onImported }: Props) {
 
 interface SearchProps {
   onPick: (item: ExternalFood, refetch: () => unknown) => void;
+  onRemove: (item: ExternalFood) => void;
   onSubmit: () => void;
   busy: boolean;
 }
 
-function NameSearch({ onPick, onSubmit, busy }: SearchProps) {
+function NameSearch({ onPick, onRemove, onSubmit, busy }: SearchProps) {
   const [text, setText] = useState('');
   const [maker, setMaker] = useState('');
   const [kind, setKind] = useState<MfdsKind>('GENERIC');
@@ -210,6 +234,7 @@ function NameSearch({ onPick, onSubmit, busy }: SearchProps) {
             label="식약처 DB 검색 결과"
             items={result.data.items}
             busy={busy}
+            onRemove={onRemove}
             onPick={(f) => onPick(f, () => result.refetch())}
           />
           {totalPages > 1 && (
@@ -241,7 +266,7 @@ function NameSearch({ onPick, onSubmit, busy }: SearchProps) {
   );
 }
 
-function BarcodeSearch({ onPick, onSubmit, busy }: SearchProps) {
+function BarcodeSearch({ onPick, onRemove, onSubmit, busy }: SearchProps) {
   const [text, setText] = useState('');
   const [code, setCode] = useState('');
   const [invalid, setInvalid] = useState(false);
@@ -314,6 +339,7 @@ function BarcodeSearch({ onPick, onSubmit, busy }: SearchProps) {
               label="바코드 영양정보 후보"
               items={result.data.items}
               busy={busy}
+              onRemove={onRemove}
               onPick={(f) => onPick(f, () => result.refetch())}
             />
           )}
@@ -328,11 +354,13 @@ function ResultList({
   items,
   busy,
   onPick,
+  onRemove,
 }: {
   label: string;
   items: ExternalFood[];
   busy: boolean;
   onPick: (f: ExternalFood) => void;
+  onRemove: (f: ExternalFood) => void;
 }) {
   return (
     <ul className={styles.results} aria-label={label}>
@@ -360,15 +388,28 @@ function ResultList({
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className={`${ui.secondary} ${ui.small}`}
-            onClick={() => onPick(f)}
-            disabled={busy}
-            aria-label={`${f.name} ${f.importedFoodId != null ? '선택' : '가져와서 선택'}`}
-          >
-            {f.importedFoodId != null ? '선택' : '가져와서 선택'}
-          </button>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={`${ui.secondary} ${ui.small}`}
+              onClick={() => onPick(f)}
+              disabled={busy}
+              aria-label={`${f.name} ${f.importedFoodId != null ? '선택' : '가져와서 선택'}`}
+            >
+              {f.importedFoodId != null ? '선택' : '가져와서 선택'}
+            </button>
+            {f.importedFoodId != null && (
+              <button
+                type="button"
+                className={`${ui.secondary} ${ui.small} ${ui.dangerText}`}
+                onClick={() => onRemove(f)}
+                disabled={busy}
+                aria-label={`${f.name} 내 음식에서 삭제`}
+              >
+                삭제
+              </button>
+            )}
+          </div>
         </li>
       ))}
     </ul>
