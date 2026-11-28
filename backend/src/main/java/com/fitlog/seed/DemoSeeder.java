@@ -85,8 +85,8 @@ public class DemoSeeder implements ApplicationRunner {
             log.info("Demo seed already handled; skipping.");
             return;
         }
-        // 운동 종목은 마이그레이션이 카탈로그로 넣어 두므로 '비어 있음' 판단에서 뺀다
-        if (foods.count() > 0 || meals.count() > 0 || workouts.count() > 0) {
+        // 운동 종목과 식단표 기본 식품(식약처, 공유)은 마이그레이션이 넣어 두므로 '비어 있음' 판단에서 뺀다
+        if (foods.countBySourceNot(Source.MFDS) > 0 || meals.count() > 0 || workouts.count() > 0) {
             jdbc.update("UPDATE seed_history SET status = 'SKIPPED_NOT_EMPTY' WHERE seed_key = ?", SEED_KEY);
             log.info("Database is not empty; demo seed skipped.");
             return;

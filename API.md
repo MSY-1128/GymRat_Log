@@ -56,7 +56,7 @@
 | Method | Path | 입력 또는 결과 |
 |---|---|---|
 | GET | /foods?q=&page=0&size=20 | `{items, page, size, totalElements}`. 내 음식 + 공용(샘플·식약처) 음식 |
-| POST | /foods | `name`, `kcal`, `carbsG`, `proteinG`, `fatG`(100g 기준), `servingGrams`(nullable) |
+| POST | /foods | `name`, `kcal`, `carbsG`, `proteinG`, `fatG`(100g 기준), `servingGrams`(nullable), 선택 `sugarsG`(0~100), `sodiumMg`(0~40000), `saturatedFatG`(0~100) |
 | GET | /foods/external?q=&page=0&kind=GENERIC&maker= | 식약처 식품영양성분DB 검색. `kind`: `ALL`·`GENERIC`(일반 음식)·`BRAND`(외식·브랜드 메뉴), `maker`: 브랜드명 |
 | GET | /foods/barcode/{code} | 식품안전나라 바코드 조회. `{barcode, product, match, items}` |
 | POST | /foods/import | `externalCode`. 검색·조회 결과의 식품을 내 음식으로 가져온다 |
@@ -68,6 +68,10 @@
   - `NOT_FOUND`: 찾지 못함
 - 외부 API 키가 없으면 503 `MFDS_NOT_CONFIGURED`·`FOODSAFETY_NOT_CONFIGURED`.
 - 가져오려는 검색 결과가 만료되었으면 409 `MFDS_SEARCH_EXPIRED`가 난다. 다시 검색해야 한다.
+- 음식·식약처 검색 결과에는 100g 기준 `sugarsG`(당류 g)·`sodiumMg`(나트륨 mg)·`saturatedFatG`(포화지방 g)가 있다. 모르면 `null`이며 0과 다르다.
+  - 식약처 원본: 당류 `AMT_NUM7`, 나트륨 `AMT_NUM13`, 포화지방 `AMT_NUM24`. 당류 > 탄수화물, 포화지방 > 지방처럼 앞뒤가 맞지 않는 값은 `null`로 둔다(식품은 빼지 않는다).
+  - 직접 등록할 때 당류 > 탄수화물이면 400 `fieldErrors.sugarsG`, 포화지방 > 지방이면 400 `fieldErrors.saturatedFatG`.
+  - 이미 가져온 식품을 다시 가져오면(`/foods/import`) 비어 있던 세 값만 검색 결과로 채운다.
 
 ## 식단 `/meals`
 
@@ -78,7 +82,7 @@
 | PUT | /meals/{id} | POST와 같음 |
 | DELETE | /meals/{id} | 204 |
 
-- 응답 필드: `id`, `date`, `mealType`, `foodId`, `grams`, `foodNameSnapshot`, `calculatedKcal`, `carbsG`, `proteinG`, `fatG`
+- 응답 필드: `id`, `date`, `mealType`, `foodId`, `grams`, `foodNameSnapshot`, `calculatedKcal`, `carbsG`, `proteinG`, `fatG`, `sugarsG`, `sodiumMg`, `saturatedFatG`(섭취량 기준, 음식에 정보가 없으면 `null`). 세 값도 기록 당시 값으로 snapshot한다
 
 ## 운동 종목 `/exercises`
 
@@ -163,8 +167,49 @@
 
 | Method | Path | 결과 |
 |---|---|---|
-| GET | /summary?date= | `date`, `consumedKcal`, `targetKcal`, `remainingKcal`, `exerciseKcal`, `exerciseMinutes`, `carbsG`, `proteinG`, `fatG` |
+| GET | /summary?date= | `date`, `consumedKcal`, `targetKcal`, `remainingKcal`, `exerciseKcal`, `exerciseMinutes`, `carbsG`, `proteinG`, `fatG`, `sugarsG`, `sodiumMg`, `saturatedFatG`, `mealCount`, `sugarsMissing`, `sodiumMissing`, `saturatedFatMissing` |
 | GET | /stats?from=&to= | 일별 summary 배열, 최대 366일 |
 
 - `exerciseMinutes`는 시간 운동의 분과 헬스 추정 시간을 합해 반올림한 값이다.
 - 운동 kcal는 목표 섭취량에 자동으로 더하지 않는다.
+- `sugarsG`·`sodiumMg`·`saturatedFatG`는 정보가 있는 기록만 더한 값이고, `*Missing`은 정보가 없어 빠진 기록 수다.
+
+## 영양 안내 `/nutrition`
+
+| Method | Path | 결과 |
+|---|---|---|
+| GET | /nutrition/limits?date= | 그날 당류·나트륨·포화지방 섭취와 상한·최근 7일 평균 비교, 줄일 부분 안내 |
+| GET | /nutrition/meal-plan?goal=&variant=0 | 목표별 하루 식단표. `goal`: `GAIN`·`MAINTAIN`·`LOSE`(비우면 프로필 목표), `variant`: 0~999(식품 조합 번호) |
+
+### `/nutrition/limits`
+
+- 기준 열량(`referenceKcal`, `referenceBasis`): 설정한 하루 목표(`TARGET`) → 프로필 유지 열량(`TDEE`) → 2,000kcal(`DEFAULT`) 순서.
+- 상한(`items[].limit`). 2,000kcal 기준으로는 국내 식품 라벨의 1일 영양성분 기준치와 같은 값이다.
+  - 나트륨(`SODIUM`): 2,000mg (WHO 2012)
+  - 당류(`SUGARS`): 기준 열량 × 20% ÷ 4 g. 식약처 값이 총당류라서 2020 한국인 영양소 섭취기준의 총당류 상한을 쓴다.
+  - 포화지방(`SATURATED_FAT`): 기준 열량 × 7% ÷ 9 g (2020 한국인 영양소 섭취기준, 19세 이상)
+- `items[]`: `nutrient`, `label`, `unit`, `today`, `todayMissing`, `average`(기록한 날 평균, 없으면 `null`), `limit`, `limitBasis`, `percent`, `status`, `averageStatus`.
+  - `status`: `NO_RECORD`(기록 없음) · `OK`(상한의 80% 이하) · `NEAR`(80~100%) · `OVER`(초과)
+- 평균 기간: `averageFrom`부터 `date`까지 7일. 그중 식단 기록이 있는 날(`averageDays`)로 나눈다.
+- `advice[]`: 초과(`WARN`)·주의(`INFO`)인 영양소만. `message`, `topFoods`(그날 하루 양의 10% 이상을 준 기록, 최대 3개: `name`, `mealType`, `amount`), `tips`.
+  - 그날 운동이 60분 이상이면 나트륨 팁에 땀 손실 안내(ACSM 2007)를 더한다.
+
+### `/nutrition/meal-plan`
+
+- 열량: 유지 열량(TDEE) 기준.
+  - `GAIN`: +10% (ISSN 2017, Iraki 외 2019)
+  - `MAINTAIN`: 그대로
+  - `LOSE`: −20% (Helms 외 2014). 기초대사량보다 낮아지지 않는다.
+- 단백질: 체중 1kg당 `GAIN` 1.8g · `MAINTAIN` 1.6g · `LOSE` 2.2g (ISSN 2017, ACSM 2016). 설정에서 단백질 목표를 정했으면 그 값. 열량의 40%를 넘지 않는다.
+- 지방: 열량의 25% (ACSM 2016 권장 20~35%). 탄수화물: 나머지.
+- 끼니 몫: 아침 25% · 점심 30% · 저녁 30% · 간식 15%.
+  - 아침 → 간식 → 점심 → 저녁 순서로 짠다. 앞 끼니에서 모자라거나 넘친 양은 뒤 끼니가 메운다.
+- 식품: V8 마이그레이션이 넣은 식약처 식품영양성분DB 기본 식품 25종(`source=MFDS`).
+  - 끼니마다 탄수화물·단백질·지방 역할 식품을 하나씩 고르고, 채소·과일은 정해진 양을 넣는다.
+  - `variant`로 고르는 식품이 바뀌며, 다른 끼니에서 이미 쓴 식품은 되도록 피한다.
+- 응답: `goal`, `variant`, `targets`(`weightKg`, `tdeeKcal`, `kcal`, `kcalRule`, `proteinG`, `proteinPerKg`, `proteinRule`, `fatG`, `fatPercent`, `carbsG`, `carbsPerKg`), `meals[]`(`mealType`, `sharePercent`, `target`, `total`, `items[]`: `foodId`, `name`, `role`, `grams`, `nutrition`), `total`, `notes[]`.
+  - `items[].foodId`는 실제 음식 ID라서 그대로 `POST /meals`로 기록할 수 있다.
+- 오류
+  - 프로필이 없거나 유지 열량을 계산할 수 없으면 409 `PROFILE_REQUIRED`.
+  - `goal` 값이 틀리면 400.
+  - `variant`가 범위 밖이면 400 `fieldErrors.variant`.

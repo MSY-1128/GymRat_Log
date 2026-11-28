@@ -21,6 +21,9 @@ public record ExternalFoodResponse(
         BigDecimal carbsG,
         BigDecimal proteinG,
         BigDecimal fatG,
+        BigDecimal sugarsG,
+        BigDecimal sodiumMg,
+        BigDecimal saturatedFatG,
         BigDecimal servingGrams,
         String basisLabel,
         boolean volumeBased,
@@ -35,6 +38,7 @@ public record ExternalFoodResponse(
         boolean restaurant = GROUP_DISH.equals(c.dbGroupName()) && CLASS_BRAND.equals(c.dbClassName());
         return new ExternalFoodResponse(c.externalCode(), c.name(), c.makerName(), c.dbGroupName(),
                 c.dbClassName(), restaurant, c.category(), c.kcal(), c.carbsG(), c.proteinG(), c.fatG(),
-                c.servingGrams(), c.basisLabel(), c.volumeBased(), c.missingNutrients(), importedFoodId);
+                c.limits().sugarsG(), c.limits().sodiumMg(), c.limits().saturatedFatG(), c.servingGrams(),
+                c.basisLabel(), c.volumeBased(), c.missingNutrients(), importedFoodId);
     }
 }

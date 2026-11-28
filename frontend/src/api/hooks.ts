@@ -1,6 +1,6 @@
 import { keepPreviousData, type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { BodyCompositionInput, Credentials, FoodInput, MealInput, MfdsKind, ProfileInput, User, WorkoutInput } from './types';
+import type { BodyCompositionInput, Credentials, FoodInput, Goal, MealInput, MfdsKind, ProfileInput, User, WorkoutInput } from './types';
 
 export const keys = {
   me: ['me'] as const,
@@ -14,6 +14,8 @@ export const keys = {
   workouts: (date: string) => ['workouts', date] as const,
   summary: (date: string) => ['summary', date] as const,
   stats: (from: string, to: string) => ['stats', from, to] as const,
+  limits: (date: string) => ['limits', date] as const,
+  mealPlan: (goal: string, variant: number) => ['meal-plan', goal, variant] as const,
   body: (from: string, to: string) => ['body', from, to] as const,
 };
 
@@ -102,6 +104,20 @@ export const useSummary = (date: string) =>
 export const useStats = (from: string, to: string) =>
   useQuery({ queryKey: keys.stats(from, to), queryFn: () => api.getStats(from, to) });
 
+/** 하루 당류·나트륨·포화지방과 상한·최근 7일 평균 비교. 식단을 바꾸면 'limits'를 무효화한다. */
+export const useLimitGuide = (date: string) =>
+  useQuery({ queryKey: keys.limits(date), queryFn: () => api.getLimitGuide(date) });
+
+/** 목표별 식단표. 프로필이 바뀌면 다시 계산한다. */
+export const useMealPlan = (goal: Goal, variant: number, enabled = true) =>
+  useQuery({
+    queryKey: keys.mealPlan(goal, variant),
+    queryFn: () => api.getMealPlan(goal, variant),
+    enabled,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+
 export const useBodyCompositions = (from: string, to: string) =>
   useQuery({
     queryKey: keys.body(from, to),
@@ -120,7 +136,7 @@ export function useSaveProfile() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (input: ProfileInput) => api.saveProfile(input),
-    onSuccess: () => invalidate('profile', 'summary', 'stats'),
+    onSuccess: () => invalidate('profile', 'summary', 'stats', 'limits', 'meal-plan'),
   });
 }
 
@@ -130,7 +146,7 @@ export function useSaveBodyComposition() {
   return useMutation({
     mutationFn: ({ id, input }: { id?: number; input: BodyCompositionInput }) =>
       id == null ? api.createBodyComposition(input) : api.updateBodyComposition(id, input),
-    onSuccess: () => invalidate('body', 'profile'),
+    onSuccess: () => invalidate('body', 'profile', 'limits', 'meal-plan'),
   });
 }
 
@@ -138,7 +154,7 @@ export function useDeleteBodyComposition() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (id: number) => api.deleteBodyComposition(id),
-    onSuccess: () => invalidate('body', 'profile'),
+    onSuccess: () => invalidate('body', 'profile', 'limits', 'meal-plan'),
   });
 }
 
@@ -164,7 +180,7 @@ export function useSaveMeal() {
   return useMutation({
     mutationFn: ({ id, input }: { id?: number; input: MealInput }) =>
       id == null ? api.createMeal(input) : api.updateMeal(id, input),
-    onSuccess: () => invalidate('meals', 'summary', 'stats'),
+    onSuccess: () => invalidate('meals', 'summary', 'stats', 'limits'),
   });
 }
 
@@ -172,7 +188,7 @@ export function useDeleteMeal() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (id: number) => api.deleteMeal(id),
-    onSuccess: () => invalidate('meals', 'summary', 'stats'),
+    onSuccess: () => invalidate('meals', 'summary', 'stats', 'limits'),
   });
 }
 
@@ -181,7 +197,7 @@ export function useSaveWorkout() {
   return useMutation({
     mutationFn: ({ id, input }: { id?: number; input: WorkoutInput }) =>
       id == null ? api.createWorkout(input) : api.updateWorkout(id, input),
-    onSuccess: () => invalidate('workouts', 'summary', 'stats'),
+    onSuccess: () => invalidate('workouts', 'summary', 'stats', 'limits'),
   });
 }
 
@@ -189,6 +205,6 @@ export function useDeleteWorkout() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (id: number) => api.deleteWorkout(id),
-    onSuccess: () => invalidate('workouts', 'summary', 'stats'),
+    onSuccess: () => invalidate('workouts', 'summary', 'stats', 'limits'),
   });
 }

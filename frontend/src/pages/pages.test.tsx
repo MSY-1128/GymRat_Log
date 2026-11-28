@@ -17,7 +17,7 @@ describe('TodayPage', () => {
     state.meals.push({
       id: 1, date: DAY, mealType: 'LUNCH', foodId: 1, grams: 200, foodNameSnapshot: '현미밥',
       kcalPer100Snapshot: 150, carbsPer100Snapshot: 32, proteinPer100Snapshot: 3, fatPer100Snapshot: 1,
-      calculatedKcal: 300, carbsG: 64, proteinG: 6, fatG: 2,
+      calculatedKcal: 300, carbsG: 64, proteinG: 6, fatG: 2, sugarsG: null, sodiumMg: null, saturatedFatG: null,
     });
 
     renderWithProviders(<App />, `/?date=${DAY}`);
@@ -72,7 +72,7 @@ describe('MealsPage', () => {
       }),
     );
     // 저장 성공 후 목록·합계 Query가 다시 조회되어 갱신된다
-    const list = await screen.findByRole('list');
+    const list = await within(await screen.findByTestId('meal-group-DINNER')).findByRole('list');
     expect(within(list).getByText('닭가슴살')).toBeInTheDocument();
     expect(within(list).getByText('248 kcal')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('meal-total')).toHaveTextContent('합계 248 kcal'));
@@ -127,7 +127,7 @@ describe('MealsPage', () => {
     state.meals.push({
       id: 7, date: DAY, mealType: 'SNACK', foodId: 1, grams: 100, foodNameSnapshot: '현미밥',
       kcalPer100Snapshot: 150, carbsPer100Snapshot: 32, proteinPer100Snapshot: 3, fatPer100Snapshot: 1,
-      calculatedKcal: 150, carbsG: 32, proteinG: 3, fatG: 1,
+      calculatedKcal: 150, carbsG: 32, proteinG: 3, fatG: 1, sugarsG: null, sodiumMg: null, saturatedFatG: null,
     });
     const user = userEvent.setup();
     renderWithProviders(<App />, `/meals?date=${DAY}`);
@@ -155,7 +155,7 @@ describe('MealsPage', () => {
     state.meals.push({
       id: 7, date: DAY, mealType: 'SNACK', foodId: 1, grams: 100, foodNameSnapshot: '현미밥',
       kcalPer100Snapshot: 150, carbsPer100Snapshot: 32, proteinPer100Snapshot: 3, fatPer100Snapshot: 1,
-      calculatedKcal: 150, carbsG: 32, proteinG: 3, fatG: 1,
+      calculatedKcal: 150, carbsG: 32, proteinG: 3, fatG: 1, sugarsG: null, sodiumMg: null, saturatedFatG: null,
     });
     const user = userEvent.setup();
     renderWithProviders(<App />, `/meals?date=${DAY}`);

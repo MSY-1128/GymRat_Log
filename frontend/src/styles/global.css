@@ -36,6 +36,7 @@
   --warning-ink: #6f5200;
   --warning-soft: #fbf3d9;
   --warning-border: #eedfa6;
+  --warning-fill: #e2a72e;
 
   /* 데이터 색 (dataviz 검증 팔레트 1~3번) */
   --series-1: #2a78d6;
@@ -108,6 +109,7 @@
     --warning-ink: #f3d27a;
     --warning-soft: rgba(243, 210, 122, 0.1);
     --warning-border: rgba(243, 210, 122, 0.26);
+    --warning-fill: #f3d27a;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
@@ -161,6 +163,7 @@
   --warning-ink: #f3d27a;
   --warning-soft: rgba(243, 210, 122, 0.1);
   --warning-border: rgba(243, 210, 122, 0.26);
+  --warning-fill: #f3d27a;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;

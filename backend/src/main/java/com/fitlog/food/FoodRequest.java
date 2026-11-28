@@ -41,6 +41,26 @@ public record FoodRequest(
         @DecimalMin(value = "0", inclusive = false, message = "0보다 커야 합니다.")
         @DecimalMax(value = "5000", message = "5000 이하여야 합니다.")
         @Digits(integer = 4, fraction = 1, message = "소수 첫째 자리까지 입력해 주세요.")
-        BigDecimal servingGrams
+        BigDecimal servingGrams,
+
+        /* 아래 셋은 선택. 비우면 '정보 없음'으로 저장한다. */
+        @DecimalMin(value = "0", message = "0 이상이어야 합니다.")
+        @DecimalMax(value = "100", message = "100g 기준 100 이하여야 합니다.")
+        @Digits(integer = 5, fraction = 2, message = "소수 둘째 자리까지 입력해 주세요.")
+        BigDecimal sugarsG,
+
+        @DecimalMin(value = "0", message = "0 이상이어야 합니다.")
+        @DecimalMax(value = "40000", message = "100g 기준 40000mg 이하여야 합니다.")
+        @Digits(integer = 6, fraction = 2, message = "소수 둘째 자리까지 입력해 주세요.")
+        BigDecimal sodiumMg,
+
+        @DecimalMin(value = "0", message = "0 이상이어야 합니다.")
+        @DecimalMax(value = "100", message = "100g 기준 100 이하여야 합니다.")
+        @Digits(integer = 5, fraction = 2, message = "소수 둘째 자리까지 입력해 주세요.")
+        BigDecimal saturatedFatG
 ) {
+
+    public LimitNutrients limits() {
+        return new LimitNutrients(sugarsG, sodiumMg, saturatedFatG);
+    }
 }

@@ -109,13 +109,16 @@ class RequestValidationTest {
     @Test
     void foodNutritionMustBeNonNegative() {
         FoodRequest negative = new FoodRequest("두부", new BigDecimal("-1"), BigDecimal.ZERO, BigDecimal.ZERO,
-                BigDecimal.ZERO, null);
+                BigDecimal.ZERO, null, null, null, null);
         assertThat(invalidFields(negative)).containsExactly("kcal");
         FoodRequest blank = new FoodRequest(" ", BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                BigDecimal.ZERO, BigDecimal.ZERO);
+                BigDecimal.ZERO, BigDecimal.ZERO, null, null, null);
         assertThat(invalidFields(blank)).containsExactlyInAnyOrder("name", "servingGrams");
         FoodRequest zeroOk = new FoodRequest("물", BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                BigDecimal.ZERO, new BigDecimal("200"));
+                BigDecimal.ZERO, new BigDecimal("200"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         assertThat(invalidFields(zeroOk)).isEmpty();
+        FoodRequest badLimits = new FoodRequest("소금", BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, null, new BigDecimal("101"), new BigDecimal("40001"), new BigDecimal("-1"));
+        assertThat(invalidFields(badLimits)).containsExactlyInAnyOrder("sugarsG", "sodiumMg", "saturatedFatG");
     }
 }

@@ -14,7 +14,12 @@ import type {
   Exercise,
   ExternalFood,
   Food,
+  Goal,
+  LimitAdvice,
+  LimitGuide,
+  LimitItem,
   MealEntry,
+  MealPlan,
   Muscle,
   Profile,
   User,
@@ -65,6 +70,40 @@ function metForSpeed(curve: { speedKmh: number; met: number }[], v: number): num
   return Math.round((a.met + ((b.met - a.met) * (v - a.speedKmh)) / (b.speedKmh - a.speedKmh)) * 100) / 100;
 }
 
+/** 식단표 응답 예시: 끼니마다 현미밥(1)·닭가슴살(2). variant가 홀수면 점심 양이 달라진다. */
+export function planFixture(goal: Goal, variant: number): MealPlan {
+  const n = (kcal: number, carbsG: number, proteinG: number, fatG: number) => ({
+    kcal, carbsG, proteinG, fatG, sugarsG: 0.4, sodiumMg: 60, saturatedFatG: 1,
+  });
+  const meal = (mealType: MealPlan['meals'][number]['mealType'], sharePercent: number, rice: number, chicken: number) => ({
+    mealType,
+    sharePercent,
+    target: { ...n(500, 60, 30, 10), sugarsG: null, sodiumMg: null, saturatedFatG: null },
+    total: n(rice * 1.5 + chicken * 1.65, rice * 0.32, rice * 0.03 + chicken * 0.31, chicken * 0.036),
+    items: [
+      { foodId: 1, name: '현미밥', role: 'CARB' as const, grams: rice, nutrition: n(rice * 1.5, rice * 0.32, rice * 0.03, rice * 0.01) },
+      { foodId: 2, name: '닭가슴살', role: 'PROTEIN' as const, grams: chicken, nutrition: n(chicken * 1.65, 0, chicken * 0.31, chicken * 0.036) },
+    ],
+  });
+  return {
+    goal,
+    variant,
+    targets: {
+      weightKg: 70, tdeeKcal: 2000, kcal: goal === 'GAIN' ? 2200 : goal === 'LOSE' ? 1600 : 2000,
+      kcalRule: '유지 열량 기준', proteinG: 126, proteinPerKg: 1.8, proteinRule: '체중 1kg당 1.8g',
+      fatG: 61, fatPercent: 25, carbsG: 280, carbsPerKg: 4,
+    },
+    meals: [
+      meal('BREAKFAST', 25, 150, 100),
+      meal('LUNCH', 30, variant % 2 ? 250 : 200, 150),
+      meal('DINNER', 30, 200, 150),
+      meal('SNACK', 15, 100, 50),
+    ],
+    total: n(2200, 280, 130, 60),
+    notes: ['단백질을 4번에 나눠 먹어요.'],
+  };
+}
+
 export function createFakeServer() {
   const state = {
     /** 로그인한 사용자(null이면 로그아웃 상태). 기본은 로그인 상태. */
@@ -73,8 +112,8 @@ export function createFakeServer() {
     csrfIssued: 0,
     profile: null as Profile | null,
     foods: [
-      { id: 1, name: '현미밥', kcal: 150, carbsG: 32, proteinG: 3, fatG: 1, servingGrams: 210, source: 'DEMO', volumeBased: false },
-      { id: 2, name: '닭가슴살', kcal: 165, carbsG: 0, proteinG: 31, fatG: 3.6, servingGrams: null, source: 'DEMO', volumeBased: false },
+      { id: 1, name: '현미밥', kcal: 150, carbsG: 32, proteinG: 3, fatG: 1, servingGrams: 210, source: 'DEMO', volumeBased: false, sugarsG: 0.2, sodiumMg: 2, saturatedFatG: 0.2 },
+      { id: 2, name: '닭가슴살', kcal: 165, carbsG: 0, proteinG: 31, fatG: 3.6, servingGrams: null, source: 'DEMO', volumeBased: false, sugarsG: null, sodiumMg: null, saturatedFatG: null },
     ] as Food[],
     /** 식약처 DB 검색 결과(서버가 정규화한 형태) */
     external: [] as ExternalFood[],
@@ -93,6 +132,8 @@ export function createFakeServer() {
     workouts: [] as WorkoutEntry[],
     /** 체성분 기록(서버 응답 형태: 체지방량·제지방량 포함) */
     bodies: [] as BodyComposition[],
+    /** 줄여야 할 부분 안내(테스트가 넣는다) */
+    limitAdvice: [] as LimitAdvice[],
     nextId: 100,
     /** 특정 경로에 대해 다음 N번 강제로 실패시킨다. */
     failures: new Map<string, { count: number; status: number; body: unknown }>(),
@@ -114,6 +155,40 @@ export function createFakeServer() {
       carbsG: meals.reduce((a, m) => a + m.carbsG, 0),
       proteinG: meals.reduce((a, m) => a + m.proteinG, 0),
       fatG: meals.reduce((a, m) => a + m.fatG, 0),
+      sugarsG: meals.reduce((a, m) => a + (m.sugarsG ?? 0), 0),
+      sodiumMg: meals.reduce((a, m) => a + (m.sodiumMg ?? 0), 0),
+      saturatedFatG: meals.reduce((a, m) => a + (m.saturatedFatG ?? 0), 0),
+      mealCount: meals.length,
+      sugarsMissing: meals.filter((m) => m.sugarsG == null).length,
+      sodiumMissing: meals.filter((m) => m.sodiumMg == null).length,
+      saturatedFatMissing: meals.filter((m) => m.saturatedFatG == null).length,
+    };
+  };
+
+  /** 서버와 같은 상한(2,000kcal 기준)·상태 규칙. 7일 평균은 오늘 값으로 둔다. */
+  const limitGuide = (date: string): LimitGuide => {
+    const s = summary(date);
+    const kcal = state.profile?.dailyTargetKcal ?? 2000;
+    const rows: [LimitItem['nutrient'], string, string, number, number, number][] = [
+      ['SODIUM', '나트륨', 'mg', s.sodiumMg, 2000, s.sodiumMissing],
+      ['SUGARS', '당류', 'g', s.sugarsG, Math.round(kcal * 0.2 / 4 * 10) / 10, s.sugarsMissing],
+      ['SATURATED_FAT', '포화지방', 'g', s.saturatedFatG, Math.round(kcal * 0.07 / 9 * 10) / 10, s.saturatedFatMissing],
+    ];
+    const status = (v: number, limit: number): LimitItem['status'] =>
+      s.mealCount === 0 ? 'NO_RECORD' : v > limit ? 'OVER' : v > limit * 0.8 ? 'NEAR' : 'OK';
+    return {
+      date,
+      referenceKcal: kcal,
+      referenceBasis: state.profile?.dailyTargetKcal != null ? 'TARGET' : 'DEFAULT',
+      averageFrom: date,
+      averageDays: s.mealCount > 0 ? 1 : 0,
+      mealCount: s.mealCount,
+      items: rows.map(([nutrient, label, unit, today, limit, missing]) => ({
+        nutrient, label, unit, today, todayMissing: missing, average: s.mealCount > 0 ? today : null, limit,
+        limitBasis: '기준', percent: Math.round((today / limit) * 100), status: status(today, limit),
+        averageStatus: status(today, limit),
+      })),
+      advice: state.limitAdvice,
     };
   };
 
@@ -205,6 +280,11 @@ export function createFakeServer() {
     const date = url.searchParams.get('date') ?? '';
     if (method === 'GET' && path === '/profile') return state.profile ? json(200, profileView()) : json(204, null);
     if (method === 'GET' && path === '/summary') return json(200, summary(date));
+    if (method === 'GET' && path === '/nutrition/limits') return json(200, limitGuide(date));
+    if (method === 'GET' && path === '/nutrition/meal-plan') {
+      if (!state.profile) return json(409, { code: 'PROFILE_REQUIRED', message: '식단표를 만들려면 설정에서 프로필을 저장해 주세요.' });
+      return json(200, planFixture((url.searchParams.get('goal') ?? 'MAINTAIN') as Goal, Number(url.searchParams.get('variant') ?? 0)));
+    }
     if (method === 'GET' && path === '/meals') return json(200, state.meals.filter((m) => m.date === date));
     if (method === 'GET' && path === '/workouts') return json(200, state.workouts.filter((w) => w.date === date));
     if (method === 'GET' && path === '/exercises') return json(200, state.exercises);
@@ -224,6 +304,19 @@ export function createFakeServer() {
       const hit = state.barcodes[code];
       return json(200, hit ?? { barcode: code, product: null, match: 'NOT_FOUND', items: [] });
     }
+    if (method === 'POST' && path === '/foods') {
+      const food: Food = {
+        id: state.nextId++,
+        ...body,
+        sugarsG: body.sugarsG ?? null,
+        sodiumMg: body.sodiumMg ?? null,
+        saturatedFatG: body.saturatedFatG ?? null,
+        source: 'USER',
+        volumeBased: false,
+      };
+      state.foods.push(food);
+      return json(201, food);
+    }
     if (method === 'POST' && path === '/foods/import') {
       const ext = [...state.external, ...Object.values(state.barcodes).flatMap((b) => b.items)].find(
         (f) => f.externalCode === body.externalCode,
@@ -241,6 +334,9 @@ export function createFakeServer() {
         servingGrams: ext.servingGrams,
         source: 'MFDS',
         volumeBased: ext.volumeBased,
+        sugarsG: ext.sugarsG,
+        sodiumMg: ext.sodiumMg,
+        saturatedFatG: ext.saturatedFatG,
       };
       state.foods.push(food);
       ext.importedFoodId = food.id;
@@ -265,6 +361,9 @@ export function createFakeServer() {
         carbsG: food.carbsG * r,
         proteinG: food.proteinG * r,
         fatG: food.fatG * r,
+        sugarsG: food.sugarsG == null ? null : food.sugarsG * r,
+        sodiumMg: food.sodiumMg == null ? null : food.sodiumMg * r,
+        saturatedFatG: food.saturatedFatG == null ? null : food.saturatedFatG * r,
       };
       state.meals.push(entry);
       return json(201, entry);

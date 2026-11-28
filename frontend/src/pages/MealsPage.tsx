@@ -7,6 +7,8 @@ import { DateNav } from '../components/DateNav';
 import { ExternalFoodSearch } from '../components/ExternalFoodSearch';
 import { Field } from '../components/Field';
 import { FoodPicker, type PickedFood } from '../components/FoodPicker';
+import { LimitNutrients, formatLimit } from '../components/LimitNutrients';
+import { MealPlan } from '../components/MealPlan';
 import { Empty, ErrorState, Loading, errorMessage } from '../components/QueryState';
 import { formatAmount, formatGram, formatKcal } from '../lib/format';
 import { useSelectedDate } from '../lib/useSelectedDate';
@@ -56,7 +58,7 @@ export function MealsPage() {
       <div className={ui.pageHeader}>
         <div>
           <h1 className={ui.title}>식단</h1>
-          <p className={ui.subtitle}>음식을 검색하거나 직접 등록해 기록하세요. 영양값은 100g 기준입니다.</p>
+          <p className={ui.subtitle}>음식을 검색하거나 직접 등록해 기록하세요. 영양값은 100g 기준이에요. 당류·나트륨 안내와 목표별 식단표도 아래에 있어요.</p>
         </div>
         <DateNav date={date} onChange={setDate} />
       </div>
@@ -82,93 +84,99 @@ export function MealsPage() {
           </section>
         </div>
 
-        <section className={ui.card} aria-labelledby="meal-list-title">
-          <h2 id="meal-list-title" className={ui.cardTitle}>
-            기록
-            {summary.isSuccess && (
-              <span className={styles.total} data-testid="meal-total">
-                합계 {formatKcal(summary.data.consumedKcal)} kcal
-              </span>
-            )}
-          </h2>
-          <p className={ui.status} role="status">
-            {status}
-          </p>
-          {meals.isPending ? (
-            <Loading />
-          ) : meals.isError ? (
-            <ErrorState error={meals.error} onRetry={() => meals.refetch()} />
-          ) : meals.data.length === 0 ? (
-            <Empty>아직 기록이 없어요.</Empty>
-          ) : (
-            <div className={styles.groups}>
-              {MEAL_TYPES.map(({ value, label }) => {
-                const items = meals.data.filter((m) => m.mealType === value);
-                const kcal = items.reduce((sum, m) => sum + m.calculatedKcal, 0);
-                return (
-                  <div key={value} className={styles.group} data-testid={`meal-group-${value}`}>
-                    <div className={styles.groupHead}>
-                      <h3 className={styles.groupTitle}>{label}</h3>
-                      <span className={styles.groupKcal}>{items.length ? `${formatKcal(kcal)} kcal` : '기록 없음'}</span>
-                      <button
-                        type="button"
-                        className={`${ui.secondary} ${ui.small}`}
-                        onClick={() => addTo(value)}
-                        aria-label={`${label} 식단 추가하기`}
-                      >
-                        + 추가
-                      </button>
-                    </div>
-                    {items.length > 0 && (
-                    <ul className={ui.list}>
-                      {items.map((m) => (
-                        <li key={m.id} className={ui.item}>
-                          <div className={ui.itemMain}>
-                            <div className={ui.itemName}>{m.foodNameSnapshot}</div>
-                            <div className={ui.itemMeta}>
-                              {formatAmount(m.grams)}g · 탄 {formatGram(m.carbsG)} · 단 {formatGram(m.proteinG)} · 지{' '}
-                              {formatGram(m.fatG)}g
-                            </div>
-                          </div>
-                          <div className={ui.itemRight}>
-                            <span className={ui.itemKcal}>{formatKcal(m.calculatedKcal)} kcal</span>
-                            <div className={ui.actions}>
-                              <button
-                                type="button"
-                                className={`${ui.secondary} ${ui.small}`}
-                                onClick={() => startEdit(m)}
-                                aria-label={`${m.foodNameSnapshot} 기록 수정`}
-                              >
-                                수정
-                              </button>
-                              <button
-                                type="button"
-                                className={`${ui.secondary} ${ui.small} ${ui.dangerText}`}
-                                onClick={() => remove(m)}
-                                disabled={del.isPending}
-                                aria-label={`${m.foodNameSnapshot} 기록 삭제`}
-                              >
-                                삭제
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                    )}
-                  </div>
-                );
-              })}
+        <div className={ui.page}>
+          <section className={ui.card} aria-labelledby="meal-list-title">
+            <h2 id="meal-list-title" className={ui.cardTitle}>
+              기록
               {summary.isSuccess && (
-                <p className={styles.macroLine}>
-                  탄수화물 {formatGram(summary.data.carbsG)}g · 단백질 {formatGram(summary.data.proteinG)}g · 지방{' '}
-                  {formatGram(summary.data.fatG)}g
-                </p>
+                <span className={styles.total} data-testid="meal-total">
+                  합계 {formatKcal(summary.data.consumedKcal)} kcal
+                </span>
               )}
-            </div>
-          )}
-        </section>
+            </h2>
+            <p className={ui.status} role="status">
+              {status}
+            </p>
+            {meals.isPending ? (
+              <Loading />
+            ) : meals.isError ? (
+              <ErrorState error={meals.error} onRetry={() => meals.refetch()} />
+            ) : meals.data.length === 0 ? (
+              <Empty>아직 기록이 없어요.</Empty>
+            ) : (
+              <div className={styles.groups}>
+                {MEAL_TYPES.map(({ value, label }) => {
+                  const items = meals.data.filter((m) => m.mealType === value);
+                  const kcal = items.reduce((sum, m) => sum + m.calculatedKcal, 0);
+                  return (
+                    <div key={value} className={styles.group} data-testid={`meal-group-${value}`}>
+                      <div className={styles.groupHead}>
+                        <h3 className={styles.groupTitle}>{label}</h3>
+                        <span className={styles.groupKcal}>{items.length ? `${formatKcal(kcal)} kcal` : '기록 없음'}</span>
+                        <button
+                          type="button"
+                          className={`${ui.secondary} ${ui.small}`}
+                          onClick={() => addTo(value)}
+                          aria-label={`${label} 식단 추가하기`}
+                        >
+                          + 추가
+                        </button>
+                      </div>
+                      {items.length > 0 && (
+                      <ul className={ui.list}>
+                        {items.map((m) => (
+                          <li key={m.id} className={ui.item}>
+                            <div className={ui.itemMain}>
+                              <div className={ui.itemName}>{m.foodNameSnapshot}</div>
+                              <div className={ui.itemMeta}>
+                                {formatAmount(m.grams)}g · 탄 {formatGram(m.carbsG)} · 단 {formatGram(m.proteinG)} · 지{' '}
+                                {formatGram(m.fatG)}g
+                                {m.sugarsG != null && ` · 당 ${formatLimit(m.sugarsG, 'g')}`}
+                                {m.sodiumMg != null && ` · 나트륨 ${formatLimit(m.sodiumMg, 'mg')}`}
+                              </div>
+                            </div>
+                            <div className={ui.itemRight}>
+                              <span className={ui.itemKcal}>{formatKcal(m.calculatedKcal)} kcal</span>
+                              <div className={ui.actions}>
+                                <button
+                                  type="button"
+                                  className={`${ui.secondary} ${ui.small}`}
+                                  onClick={() => startEdit(m)}
+                                  aria-label={`${m.foodNameSnapshot} 기록 수정`}
+                                >
+                                  수정
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${ui.secondary} ${ui.small} ${ui.dangerText}`}
+                                  onClick={() => remove(m)}
+                                  disabled={del.isPending}
+                                  aria-label={`${m.foodNameSnapshot} 기록 삭제`}
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      )}
+                    </div>
+                  );
+                })}
+                {summary.isSuccess && (
+                  <p className={styles.macroLine}>
+                    탄수화물 {formatGram(summary.data.carbsG)}g · 단백질 {formatGram(summary.data.proteinG)}g · 지방{' '}
+                    {formatGram(summary.data.fatG)}g
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+          <LimitNutrients date={date} />
+        </div>
       </div>
+      <MealPlan date={date} />
     </div>
   );
 }

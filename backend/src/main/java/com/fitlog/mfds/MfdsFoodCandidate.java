@@ -1,5 +1,6 @@
 package com.fitlog.mfds;
 
+import com.fitlog.food.LimitNutrients;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -11,6 +12,7 @@ import java.util.List;
  * @param basisLabel       원본 영양성분 기준량(예: 100g, 100mL)
  * @param volumeBased      원본이 mL 기준이라 1mL ≈ 1g으로 근사했는지
  * @param servingGrams     1회 섭취참고량 또는 식품 중량(g, mL은 근사). 없거나 범위 밖이면 null
+ * @param limits           당류·나트륨·포화지방(100g 기준, 모르면 각각 null)
  * @param missingNutrients 원본에 값이 없어 0으로 둔 영양소(carbsG, proteinG, fatG)
  * @param dbGroupName      원본 식품군(음식/가공식품/농축산물 등). 음식 + 상용제품이면 외식 프랜차이즈 메뉴
  * @param itemReportNo     품목제조보고번호(가공식품만 있음)
@@ -27,6 +29,7 @@ public record MfdsFoodCandidate(
         BigDecimal carbsG,
         BigDecimal proteinG,
         BigDecimal fatG,
+        LimitNutrients limits,
         BigDecimal servingGrams,
         String basisLabel,
         boolean volumeBased,

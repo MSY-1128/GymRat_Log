@@ -27,8 +27,14 @@ public class FoodService {
 
     @Transactional
     public FoodResponse create(Long userId, FoodRequest r) {
+        if (r.sugarsG() != null && r.sugarsG().compareTo(r.carbsG()) > 0) {
+            throw ApiException.validation("sugarsG", "당류는 탄수화물보다 많을 수 없어요.");
+        }
+        if (r.saturatedFatG() != null && r.saturatedFatG().compareTo(r.fatG()) > 0) {
+            throw ApiException.validation("saturatedFatG", "포화지방은 지방보다 많을 수 없어요.");
+        }
         Food food = Food.userFood(userId, r.name().strip(), r.kcal(), r.carbsG(), r.proteinG(), r.fatG(),
-                r.servingGrams());
+                r.servingGrams()).withLimits(r.limits());
         return FoodResponse.from(repository.save(food));
     }
 

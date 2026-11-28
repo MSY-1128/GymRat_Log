@@ -10,6 +10,9 @@ import type {
   ExternalFoodPage,
   Food,
   FoodInput,
+  Goal,
+  LimitGuide,
+  MealPlan,
   MealEntry,
   MealInput,
   MfdsKind,
@@ -154,6 +157,9 @@ export const api = {
 
   getSummary: (date: string) => request<DailySummary>('/summary' + q({ date })),
   getStats: (from: string, to: string) => request<DailySummary[]>('/stats' + q({ from, to })),
+  getLimitGuide: (date: string) => request<LimitGuide>('/nutrition/limits' + q({ date })),
+  getMealPlan: (goal: Goal, variant: number) =>
+    request<MealPlan>('/nutrition/meal-plan' + q({ goal, variant })),
 
   getBodyCompositions: (from: string, to: string) =>
     request<BodyComposition[]>('/body-compositions' + q({ from, to })),

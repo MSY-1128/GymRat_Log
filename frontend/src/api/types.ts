@@ -66,6 +66,10 @@ export interface Food {
   source: Source;
   /** 원본이 100mL 기준이라 1mL ≈ 1g으로 근사한 값 */
   volumeBased: boolean;
+  /** 100g 기준 당류(g)·나트륨(mg)·포화지방(g). 모르면 null */
+  sugarsG: number | null;
+  sodiumMg: number | null;
+  saturatedFatG: number | null;
 }
 
 /** 식약처 식품영양성분DB 검색 결과(서버가 100g 기준으로 정규화). */
@@ -83,6 +87,10 @@ export interface ExternalFood {
   carbsG: number;
   proteinG: number;
   fatG: number;
+  /** 100g 기준. 원본에 없거나 앞뒤가 맞지 않으면 null */
+  sugarsG: number | null;
+  sodiumMg: number | null;
+  saturatedFatG: number | null;
   servingGrams: number | null;
   /** 원본 영양성분 기준량(예: 100g, 100mL) */
   basisLabel: string;
@@ -128,6 +136,10 @@ export interface FoodInput {
   proteinG: number;
   fatG: number;
   servingGrams: number | null;
+  /** 선택. 비우면 '정보 없음' */
+  sugarsG?: number | null;
+  sodiumMg?: number | null;
+  saturatedFatG?: number | null;
 }
 
 export interface Page<T> {
@@ -270,6 +282,10 @@ export interface MealEntry {
   carbsG: number;
   proteinG: number;
   fatG: number;
+  /** 섭취량 기준. 음식에 정보가 없으면 null */
+  sugarsG: number | null;
+  sodiumMg: number | null;
+  saturatedFatG: number | null;
 }
 
 export interface MealInput {
@@ -333,6 +349,101 @@ export interface DailySummary {
   carbsG: number;
   proteinG: number;
   fatG: number;
+  /** 정보가 있는 기록만 더한 값 */
+  sugarsG: number;
+  sodiumMg: number;
+  saturatedFatG: number;
+  mealCount: number;
+  /** 정보가 없어 합계에서 빠진 기록 수 */
+  sugarsMissing: number;
+  sodiumMissing: number;
+  saturatedFatMissing: number;
+}
+
+export type LimitNutrient = 'SODIUM' | 'SUGARS' | 'SATURATED_FAT';
+/** NO_RECORD 기록 없음 · OK 상한의 80% 이하 · NEAR 80~100% · OVER 초과 */
+export type LimitStatus = 'NO_RECORD' | 'OK' | 'NEAR' | 'OVER';
+
+export interface LimitItem {
+  nutrient: LimitNutrient;
+  label: string;
+  unit: string;
+  today: number;
+  todayMissing: number;
+  /** 기록이 있는 날의 하루 평균 */
+  average: number | null;
+  limit: number;
+  limitBasis: string;
+  percent: number;
+  status: LimitStatus;
+  averageStatus: LimitStatus;
+}
+
+export interface LimitAdvice {
+  nutrient: LimitNutrient;
+  level: 'WARN' | 'INFO';
+  message: string;
+  topFoods: { name: string; mealType: MealType; amount: number }[];
+  tips: string[];
+}
+
+export interface LimitGuide {
+  date: string;
+  referenceKcal: number;
+  /** TARGET 하루 목표 · TDEE 프로필 계산 · DEFAULT 2,000kcal */
+  referenceBasis: 'TARGET' | 'TDEE' | 'DEFAULT';
+  averageFrom: string;
+  averageDays: number;
+  mealCount: number;
+  items: LimitItem[];
+  advice: LimitAdvice[];
+}
+
+export interface PlanNutrition {
+  kcal: number;
+  carbsG: number;
+  proteinG: number;
+  fatG: number;
+  sugarsG: number | null;
+  sodiumMg: number | null;
+  saturatedFatG: number | null;
+}
+
+export interface PlanItem {
+  foodId: number;
+  name: string;
+  role: 'CARB' | 'PROTEIN' | 'FAT' | 'VEG' | 'FRUIT';
+  grams: number;
+  nutrition: PlanNutrition;
+}
+
+export interface PlanMeal {
+  mealType: MealType;
+  sharePercent: number;
+  target: PlanNutrition;
+  total: PlanNutrition;
+  items: PlanItem[];
+}
+
+export interface MealPlan {
+  goal: Goal;
+  variant: number;
+  targets: {
+    weightKg: number;
+    tdeeKcal: number;
+    kcal: number;
+    kcalRule: string;
+    proteinG: number;
+    proteinPerKg: number;
+    proteinRule: string;
+    fatG: number;
+    fatPercent: number;
+    carbsG: number;
+    carbsPerKg: number;
+  };
+  meals: PlanMeal[];
+  total: PlanNutrition;
+  notes: string[];
 }
 
 export interface ApiErrorBody {

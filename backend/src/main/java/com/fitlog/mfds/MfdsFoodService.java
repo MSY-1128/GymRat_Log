@@ -141,17 +141,25 @@ public class MfdsFoodService {
         return s.length() < 2 ? null : s;
     }
 
-    /** 이미 가져온 식품이면 기존 음식을 돌려준다(중복 저장 없음). */
+    /**
+     * 이미 가져온 식품이면 기존 음식을 돌려준다(중복 저장 없음).
+     * 당류·나트륨·포화지방이 비어 있던 예전 음식은 검색 결과가 남아 있으면 그 값으로 채운다.
+     */
     @Transactional
     public FoodResponse importFood(String externalCode) {
         String code = externalCode.strip();
         return foods.findByExternalCode(code)
-                .map(FoodResponse::from)
+                .map(existing -> {
+                    if (!existing.getLimits().complete()) {
+                        cache.get(code).ifPresent(c -> existing.withLimits(existing.getLimits().orElse(c.limits())));
+                    }
+                    return FoodResponse.from(existing);
+                })
                 .orElseGet(() -> {
                     MfdsFoodCandidate c = cache.get(code).orElseThrow(() -> new ApiException(HttpStatus.CONFLICT,
                             "MFDS_SEARCH_EXPIRED", "검색 결과가 만료되었어요. 식약처 DB에서 다시 검색해 주세요."));
                     Food food = Food.fromMfds(c.name(), c.kcal(), c.carbsG(), c.proteinG(), c.fatG(),
-                            c.servingGrams(), c.externalCode(), c.volumeBased());
+                            c.servingGrams(), c.externalCode(), c.volumeBased()).withLimits(c.limits());
                     return FoodResponse.from(foods.save(food));
                 });
     }

@@ -29,4 +29,6 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
     Optional<Food> findByExternalCode(String externalCode);
 
     List<Food> findByExternalCodeIn(Collection<String> externalCodes);
+
+    long countBySourceNot(Source source);
 }

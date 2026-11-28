@@ -55,6 +55,49 @@ class MfdsFoodMapperTest {
     }
 
     @Test
+    void sugarsSodiumAndSaturatedFatAreReadPer100g() {
+        // 실제 응답(삼겹살구이 2026-11-28): AMT_NUM7 당류 g, AMT_NUM13 나트륨 mg, AMT_NUM24 포화지방 g
+        Map<String, String> m = item("D108-382000000-0001", "삼겹살구이", "100g", "467.000", "0.35", "22.56", "41.69");
+        m.put("AMT_NUM7", "0.00");
+        m.put("AMT_NUM13", "576.000");
+        m.put("AMT_NUM24", "12.42");
+
+        MfdsFoodCandidate c = mapOk(m);
+
+        assertThat(c.limits().sugarsG()).isEqualByComparingTo("0");
+        assertThat(c.limits().sodiumMg()).isEqualByComparingTo("576");
+        assertThat(c.limits().saturatedFatG()).isEqualByComparingTo("12.42");
+    }
+
+    @Test
+    void limitNutrientsAreScaledAndUnknownStaysNull() {
+        Map<String, String> m = item("P1", "음료", "200mL", "100", "20", "0", "0");
+        m.put("AMT_NUM7", "18");
+        m.put("AMT_NUM13", "1,200");
+
+        MfdsFoodCandidate c = mapOk(m);
+
+        assertThat(c.limits().sugarsG()).isEqualByComparingTo("9.00");
+        assertThat(c.limits().sodiumMg()).isEqualByComparingTo("600.00");
+        assertThat(c.limits().saturatedFatG()).isNull();
+    }
+
+    @Test
+    void impossibleLimitNutrientsBecomeUnknownWithoutDroppingTheFood() {
+        // 원본 오류 예: 포화지방이 지방보다 큼, 당류가 탄수화물보다 큼
+        Map<String, String> m = item("P2", "달걀말이", "100g", "117", "6.33", "10.67", "5.33");
+        m.put("AMT_NUM24", "265.000");
+        m.put("AMT_NUM7", "9");
+        m.put("AMT_NUM13", "N/A");
+
+        MfdsFoodCandidate c = mapOk(m);
+
+        assertThat(c.limits().saturatedFatG()).isNull();
+        assertThat(c.limits().sugarsG()).isNull();
+        assertThat(c.limits().sodiumMg()).isNull();
+    }
+
+    @Test
     void millilitreBasisIsApproximatedAsGrams() {
         Map<String, String> m = item("D401-050000000-0001", "현미밥", "100mL", "120.000", "25.75", "2.30", "0.38");
         m.put("Z10500", "300.000mL");

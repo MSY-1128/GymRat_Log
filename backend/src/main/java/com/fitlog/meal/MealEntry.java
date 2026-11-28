@@ -3,6 +3,7 @@ package com.fitlog.meal;
 import com.fitlog.common.BaseEntity;
 import com.fitlog.common.Calculator;
 import com.fitlog.food.Food;
+import com.fitlog.food.LimitNutrients;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -55,6 +56,16 @@ public class MealEntry extends BaseEntity {
     @Column(name = "fat_per100_snapshot", nullable = false)
     private BigDecimal fatPer100Snapshot;
 
+    /** 당류·나트륨·포화지방 snapshot. 음식에 정보가 없었으면 null. */
+    @Column(name = "sugars_per100_snapshot")
+    private BigDecimal sugarsPer100Snapshot;
+
+    @Column(name = "sodium_per100_snapshot")
+    private BigDecimal sodiumPer100Snapshot;
+
+    @Column(name = "saturated_fat_per100_snapshot")
+    private BigDecimal saturatedFatPer100Snapshot;
+
     protected MealEntry() {
     }
 
@@ -83,6 +94,10 @@ public class MealEntry extends BaseEntity {
         this.carbsPer100Snapshot = food.getCarbsG();
         this.proteinPer100Snapshot = food.getProteinG();
         this.fatPer100Snapshot = food.getFatG();
+        LimitNutrients limits = food.getLimits();
+        this.sugarsPer100Snapshot = limits.sugarsG();
+        this.sodiumPer100Snapshot = limits.sodiumMg();
+        this.saturatedFatPer100Snapshot = limits.saturatedFatG();
     }
 
     public BigDecimal calculatedKcal() {
@@ -99,6 +114,16 @@ public class MealEntry extends BaseEntity {
 
     public BigDecimal calculatedFatG() {
         return Calculator.perGrams(fatPer100Snapshot, grams);
+    }
+
+    /** 섭취량 기준 당류(g)·나트륨(mg)·포화지방(g). 모르면 각각 null. */
+    public LimitNutrients calculatedLimits() {
+        return new LimitNutrients(perGramsOrNull(sugarsPer100Snapshot), perGramsOrNull(sodiumPer100Snapshot),
+                perGramsOrNull(saturatedFatPer100Snapshot));
+    }
+
+    private BigDecimal perGramsOrNull(BigDecimal per100) {
+        return per100 == null ? null : Calculator.perGrams(per100, grams);
     }
 
     public LocalDate getDate() {

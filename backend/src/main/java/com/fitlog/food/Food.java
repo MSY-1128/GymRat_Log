@@ -48,6 +48,15 @@ public class Food extends BaseEntity {
     @Column(name = "volume_based", nullable = false)
     private boolean volumeBased;
 
+    @Column(name = "sugars_g")
+    private BigDecimal sugarsG;
+
+    @Column(name = "sodium_mg")
+    private BigDecimal sodiumMg;
+
+    @Column(name = "saturated_fat_g")
+    private BigDecimal saturatedFatG;
+
     /** 직접 등록한 음식(USER)의 소유자. DEMO·MFDS는 null(공유). */
     @Column(name = "owner_id")
     private Long ownerId;
@@ -125,5 +134,17 @@ public class Food extends BaseEntity {
 
     public boolean isVolumeBased() {
         return volumeBased;
+    }
+
+    public LimitNutrients getLimits() {
+        return new LimitNutrients(sugarsG, sodiumMg, saturatedFatG);
+    }
+
+    /** 당류·나트륨·포화지방을 설정한다. 이미 있는 값을 지우지 않으려면 getLimits().orElse(...)를 넘긴다. */
+    public Food withLimits(LimitNutrients limits) {
+        this.sugarsG = limits.sugarsG();
+        this.sodiumMg = limits.sodiumMg();
+        this.saturatedFatG = limits.saturatedFatG();
+        return this;
     }
 }

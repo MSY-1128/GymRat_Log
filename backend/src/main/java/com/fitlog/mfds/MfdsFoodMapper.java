@@ -1,5 +1,6 @@
 package com.fitlog.mfds;
 
+import com.fitlog.food.LimitNutrients;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -19,6 +20,8 @@ import java.util.regex.Pattern;
  *   <li>영양성분은 SERVING_SIZE(예: 100g, 100mL, 30g) 기준이다. 100g 기준으로 환산하고, mL은 1mL ≈ 1g으로 근사한다.</li>
  *   <li>에너지(AMT_NUM1)가 없거나 값이 범위를 벗어나면(데이터 오류) 후보에서 제외한다.</li>
  *   <li>탄수화물·단백질·지방이 비어 있으면 0으로 두고 missingNutrients로 알린다.</li>
+ *   <li>당류(AMT_NUM7)·나트륨(AMT_NUM13, mg)·포화지방(AMT_NUM24)은 비어 있거나 앞뒤가 맞지 않으면
+ *       (당류 &gt; 탄수화물, 포화지방 &gt; 지방, 범위 밖) 0이 아닌 null(정보 없음)로 둔다. 후보에서 빼지는 않는다.</li>
  * </ul>
  */
 public final class MfdsFoodMapper {
@@ -27,12 +30,16 @@ public final class MfdsFoodMapper {
     static final String PROTEIN = "AMT_NUM3";
     static final String FAT = "AMT_NUM4";
     static final String CARBS = "AMT_NUM6";
+    static final String SUGARS = "AMT_NUM7";
+    static final String SODIUM = "AMT_NUM13";
+    static final String SATURATED_FAT = "AMT_NUM24";
 
     private static final Pattern AMOUNT = Pattern.compile("^([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(g|ml)$",
             Pattern.CASE_INSENSITIVE);
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     private static final BigDecimal MAX_KCAL = BigDecimal.valueOf(900);
     private static final BigDecimal MAX_SERVING = BigDecimal.valueOf(5000);
+    private static final BigDecimal MAX_SODIUM_MG = BigDecimal.valueOf(40000);
     private static final int NAME_MAX = 100;
 
     private MfdsFoodMapper() {
@@ -112,6 +119,8 @@ public final class MfdsFoodMapper {
                 carbs100,
                 protein100,
                 fat100,
+                limits(item, basis.value(), carbs.value() == null ? null : carbs100,
+                        fat.value() == null ? null : fat100),
                 servingGrams(item),
                 basis.label(),
                 basis.volume(),
@@ -176,6 +185,28 @@ public final class MfdsFoodMapper {
             }
         }
         return null;
+    }
+
+    /** 당류·나트륨·포화지방(100g 기준). 탄수화물·지방은 원본에 값이 있을 때만 상한으로 쓴다. */
+    static LimitNutrients limits(Map<String, String> item, BigDecimal basis, BigDecimal carbs100,
+                                                 BigDecimal fat100) {
+        BigDecimal sugars = optionalPer100(item.get(SUGARS), basis, carbs100 == null ? HUNDRED : carbs100);
+        BigDecimal sodium = optionalPer100(item.get(SODIUM), basis, MAX_SODIUM_MG);
+        BigDecimal saturated = optionalPer100(item.get(SATURATED_FAT), basis, fat100 == null ? HUNDRED : fat100);
+        return new LimitNutrients(sugars, sodium, saturated);
+    }
+
+    /** 값 없음·데이터 오류·상한 초과면 null. 반올림 오차(0.05)까지는 상한으로 맞춘다. */
+    private static BigDecimal optionalPer100(String raw, BigDecimal basis, BigDecimal max) {
+        Nutrient n = nutrient(raw);
+        if (n.invalid() || n.value() == null) {
+            return null;
+        }
+        BigDecimal v = per100(n.value(), basis);
+        if (v.compareTo(max) <= 0) {
+            return v;
+        }
+        return v.subtract(max).compareTo(new BigDecimal("0.05")) <= 0 ? max : null;
     }
 
     private static BigDecimal per100(BigDecimal value, BigDecimal basis) {

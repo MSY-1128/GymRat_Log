@@ -2,6 +2,7 @@ package com.fitlog.summary;
 
 import com.fitlog.common.ApiException;
 import com.fitlog.common.Calculator;
+import com.fitlog.food.LimitNutrients;
 import com.fitlog.meal.MealEntry;
 import com.fitlog.meal.MealEntryRepository;
 import com.fitlog.profile.Profile;
@@ -69,11 +70,33 @@ public class SummaryService {
         BigDecimal carbs = BigDecimal.ZERO;
         BigDecimal protein = BigDecimal.ZERO;
         BigDecimal fat = BigDecimal.ZERO;
+        BigDecimal sugars = BigDecimal.ZERO;
+        BigDecimal sodium = BigDecimal.ZERO;
+        BigDecimal saturated = BigDecimal.ZERO;
+        int sugarsMissing = 0;
+        int sodiumMissing = 0;
+        int saturatedMissing = 0;
         for (MealEntry m : meals) {
             kcal = kcal.add(m.calculatedKcal());
             carbs = carbs.add(m.calculatedCarbsG());
             protein = protein.add(m.calculatedProteinG());
             fat = fat.add(m.calculatedFatG());
+            LimitNutrients l = m.calculatedLimits();
+            if (l.sugarsG() == null) {
+                sugarsMissing++;
+            } else {
+                sugars = sugars.add(l.sugarsG());
+            }
+            if (l.sodiumMg() == null) {
+                sodiumMissing++;
+            } else {
+                sodium = sodium.add(l.sodiumMg());
+            }
+            if (l.saturatedFatG() == null) {
+                saturatedMissing++;
+            } else {
+                saturated = saturated.add(l.saturatedFatG());
+            }
         }
         BigDecimal exerciseKcal = BigDecimal.ZERO;
         BigDecimal minutes = BigDecimal.ZERO;
@@ -83,6 +106,7 @@ public class SummaryService {
             minutes = minutes.add(e.durationMinutes());
         }
         return new DailySummary(date, kcal, target, Calculator.remaining(target, kcal), exerciseKcal,
-                minutes.setScale(0, java.math.RoundingMode.HALF_UP).intValue(), carbs, protein, fat);
+                minutes.setScale(0, java.math.RoundingMode.HALF_UP).intValue(), carbs, protein, fat,
+                sugars, sodium, saturated, meals.size(), sugarsMissing, sodiumMissing, saturatedMissing);
     }
 }
