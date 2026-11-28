@@ -1,8 +1,10 @@
 package com.fitlog.nutrition;
 
+import com.fitlog.body.BodyStandards;
 import com.fitlog.meal.MealType;
 import com.fitlog.profile.Goal;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -14,6 +16,7 @@ import java.util.List;
 public record MealPlanResponse(
         Goal goal,
         int variant,
+        Body body,
         Targets targets,
         List<PlanMeal> meals,
         Nutrition total,
@@ -21,7 +24,23 @@ public record MealPlanResponse(
 ) {
 
     /**
-     * @param tdeeKcal     유지 열량(프로필의 BMR × 활동계수)
+     * 식단표의 몸 기준(가장 최근 체성분 측정, 없으면 프로필).
+     *
+     * @param bmrSource   MEASURED(인바디 측정) · LEAN_MASS(제지방량 공식) · PROFILE(프로필 계산)
+     * @param bodyFatLevel 체지방률 판정(Gallagher 2000). 성별·나이·체지방률이 없으면 null
+     */
+    public record Body(Source source, LocalDate measuredOn, BigDecimal weightKg, BigDecimal bodyFatPct,
+                       BigDecimal leanMassKg, BigDecimal skeletalMuscleKg, BigDecimal bmrKcal, BmrSource bmrSource,
+                       BodyStandards.Level bodyFatLevel, String bodyFatLabel, BigDecimal bodyFatNormalLow,
+                       BigDecimal bodyFatNormalHigh) {
+
+        public enum Source { BODY_COMPOSITION, PROFILE }
+
+        public enum BmrSource { MEASURED, LEAN_MASS, PROFILE }
+    }
+
+    /**
+     * @param tdeeKcal     유지 열량(기초대사량 × 활동계수)
      * @param kcalRule     열량을 정한 근거
      * @param proteinRule  단백질을 정한 근거
      * @param fatPercent   지방이 열량에서 차지하는 비율(%)

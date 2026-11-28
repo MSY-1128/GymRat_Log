@@ -15,6 +15,9 @@ public interface BodyCompositionRepository extends JpaRepository<BodyComposition
 
     Optional<BodyComposition> findByUserIdAndMeasuredOn(Long userId, LocalDate measuredOn);
 
+    /** 가장 최근 측정(식단표 기준). */
+    Optional<BodyComposition> findFirstByUserIdOrderByMeasuredOnDesc(Long userId);
+
     /** 체지방률이 있는 가장 최근 측정(제지방량 계산용). */
     Optional<BodyComposition> findFirstByUserIdAndBodyFatPctNotNullOrderByMeasuredOnDesc(Long userId);
 

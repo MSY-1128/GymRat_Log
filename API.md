@@ -153,15 +153,42 @@
 | POST | /body-compositions | 아래 입력. 같은 날짜가 이미 있으면 409 `DUPLICATE_DATE` |
 | PUT | /body-compositions/{id} | POST와 같음 |
 | DELETE | /body-compositions/{id} | 204 |
+| GET | /body-compositions/{id}/analysis | 결과지 형태로 정리하고 국제 기준으로 판정한 분석 |
 
-- **입력**(`measuredOn`, `weightKg` 말고는 모두 선택)
-  - `measuredOn`
-  - `weightKg`: 30~350
-  - `bodyFatPct`: 3~70
-  - `skeletalMuscleKg`: 5~100
-  - `measuredBmrKcal`: 500~5000
-  - `visceralFatLevel`: 1~30
-- **결과**: 입력값과 `id`, `fatMassKg`, `leanMassKg`. 체지방률이 있을 때만 계산한다.
+- **입력**: 인바디 결과지 순서. `measuredOn`, `weightKg` 말고는 모두 선택이다.
+  - 기본: `measuredOn`, `weightKg` 30~350
+  - 체성분분석: `bodyWaterL` 10~150(L), `proteinKg` 1~40, `mineralKg` 0.5~15, `bodyFatMassKg` 1~250
+  - 골격근·지방, 비만분석: `skeletalMuscleKg` 5~100, `bodyFatPct` 3~70
+  - 부위별 근육: `segmentalLean` = `{rightArm, leftArm, trunk, rightLeg, leftLeg}`(kg). 팔 0.1~30, 몸통 1~120, 다리 0.5~50
+  - 부위별 체지방: `segmentalFat` = 같은 모양(kg). 팔 0~40, 몸통 0~150, 다리 0~60
+  - 연구항목: `measuredBmrKcal` 500~5000, `visceralFatLevel` 1~30, `ecwRatio` 0.300~0.500(세포외수분비), `waistHipRatio` 0.50~1.50(복부지방률), `inbodyScore` 0~100
+  - 범위는 입력 검증용이며 건강 기준이 아니다. 부위 값의 오류 키는 `segmentalLean.rightArm` 형태다.
+- **정형화**: 저장 전에 서버가 값을 맞추고 검사한다. 맞지 않는 항목은 한 번에 모두 400 `fieldErrors`로 돌려준다.
+  - 체지방률과 체지방량은 하나만 넣어도 나머지를 계산해 함께 저장한다(소수 첫째 자리).
+  - 둘 다 넣었으면 체중 × 체지방률과 체지방량의 차이가 1.0kg 이하여야 한다(`bodyFatMassKg`).
+  - 체수분 + 단백질 + 무기질 + 체지방량 ≈ 체중이어야 한다. 넷 다 있을 때만 보고, 허용 오차는 1.5kg이다(`bodyWaterL`).
+  - 골격근량 < 제지방량(체지방 정보가 없으면 < 체중)이어야 한다(`skeletalMuscleKg`).
+  - 부위별 근육 합 ≤ 제지방량 + 1kg(`segmentalLean`), 부위별 체지방 합 ≤ 체지방량 + 1kg(`segmentalFat`)이어야 한다.
+- **결과**
+  - 입력 항목(체지방량은 `fatMassKg`로 나온다)
+  - `id`, `leanMassKg`(체중 − 체지방량)
+  - `appendicularLeanKg`: 팔·다리 근육량 합. 네 부위가 다 있을 때만
+- **분석**(`/analysis`): 판정에는 프로필의 성별·나이·키를 쓴다. 없으면 `context.missing`에 이유를 적고 그 판정은 뺀다.
+  - `context`: `sex`, `age`, `heightCm`, `standardWeightKg`(BMI 22 기준), `missing`
+  - `groups[]`
+    - 묶음 키: `COMPOSITION`(체성분분석), `MUSCLE_FAT`(골격근·지방분석), `OBESITY`(비만분석), `MUSCLE`(근육 지표), `SEGMENT_LEAN`(부위별 근육), `SEGMENT_FAT`(부위별 체지방), `RESEARCH`(연구항목)
+    - 값이 없는 항목은 빠지고, 항목이 하나도 없는 묶음도 빠진다.
+  - 항목(`items[]`): `key`, `label`, `unit`, `value`, `sharePct`(체중 대비 %), `level`(`LOW`·`NORMAL`·`HIGH`·`VERY_HIGH`), `levelLabel`, `normalLow`, `normalHigh`, `basis`(출처)
+
+| 항목 | 기준 |
+|---|---|
+| 체지방률 | Gallagher 외 2000(AJCN). 나이·성별 건강 범위. 예: 남 20~39세 8~20%, 여 21~33%. 18세 미만은 판정하지 않음 |
+| BMI | WHO 아시아·태평양(2000). 정상 18.5~22.9, 과체중 23~24.9, 비만 25 이상 |
+| 체지방량지수(FMI, 체지방량 ÷ 키²) | Kelly 외 2009(NHANES). 남 정상 3~6, 여 5~9 |
+| 복부지방률 | WHO 전문가 협의(2008). 남 0.90, 여 0.85 이상이면 위험 |
+| 사지근육지수(ASMI, 사지 근육량 ÷ 키²) | AWGS 2019. 남 7.0, 여 5.7 미만이면 낮음 |
+| 내장지방 레벨(10 이상 높음), 세포외수분비(0.360~0.390 표준) | 국제 기준이 없어 인바디 제조사 기준. `basis`에 그렇게 적는다 |
+| 제지방량지수(FFMI), 좌우 차이, 기초대사량(제지방 공식 370 + 21.6 × 제지방량) | 값만 보여 주고 판정하지 않음 |
 
 ## 요약 `/summary`, `/stats`
 
@@ -196,11 +223,24 @@
 
 ### `/nutrition/meal-plan`
 
-- 열량: 유지 열량(TDEE) 기준.
-  - `GAIN`: +10% (ISSN 2017, Iraki 외 2019)
+- 몸 기준(`body`): 가장 최근 체성분 측정을 쓴다. 없으면 프로필을 쓴다(`source`).
+  - 체중: 측정 체중 → 프로필 체중
+  - 기초대사량(`bmrSource`): 인바디 측정값(`MEASURED`) → 제지방량 공식 370 + 21.6 × 제지방량(`LEAN_MASS`, Katch-McArdle) → 프로필 계산값(`PROFILE`)
+  - 체지방률 판정(`bodyFatLevel`): Gallagher 2000 나이·성별 건강 범위
+  - 응답: `source`, `measuredOn`, `weightKg`, `bodyFatPct`, `leanMassKg`, `skeletalMuscleKg`, `bmrKcal`, `bmrSource`, `bodyFatLevel`, `bodyFatLabel`, `bodyFatNormalLow`, `bodyFatNormalHigh`
+- 열량: 유지 열량 = 기초대사량 × 프로필 활동계수.
+  - `GAIN`: +10% (ISSN 2017, Iraki 외 2019). 체지방률이 건강 범위보다 높으면 +5%로 줄인다(ISSN 2017 식단과 체성분).
   - `MAINTAIN`: 그대로
-  - `LOSE`: −20% (Helms 외 2014). 기초대사량보다 낮아지지 않는다.
-- 단백질: 체중 1kg당 `GAIN` 1.8g · `MAINTAIN` 1.6g · `LOSE` 2.2g (ISSN 2017, ACSM 2016). 설정에서 단백질 목표를 정했으면 그 값. 열량의 40%를 넘지 않는다.
+  - `LOSE`: −20% (Helms 외 2014). 마를수록 천천히 줄인다.
+    - 체지방률이 건강 범위면 −15%
+    - 건강 범위 아래면 −10%이고, 감량 대신 유지를 권하는 안내를 붙인다.
+    - 기초대사량보다 낮아지지 않는다.
+- 단백질: 열량의 40%를 넘지 않는다. 우선순위는 다음과 같다.
+  - 설정에서 단백질 목표(제지방 1kg당)를 정했으면 그 값
+  - 제지방량이 있으면 제지방 1kg당 `GAIN` 2.1g · `MAINTAIN` 1.9g · `LOSE` 2.6g
+    - 증가·유지는 체중 기준 1.8·1.6g(ISSN 2017·ACSM 2016 권장 1.4~2.0g)을 체지방률 15% 기준으로 바꾼 값이다.
+    - 감량은 Helms 2014 권장 2.3~3.1g의 가운데 값이다.
+  - 없으면 체중 1kg당 `GAIN` 1.8g · `MAINTAIN` 1.6g · `LOSE` 2.2g
 - 지방: 열량의 25% (ACSM 2016 권장 20~35%). 탄수화물: 나머지.
 - 끼니 몫: 아침 25% · 점심 30% · 저녁 30% · 간식 15%.
   - 아침 → 간식 → 점심 → 저녁 순서로 짠다. 앞 끼니에서 모자라거나 넘친 양은 뒤 끼니가 메운다.

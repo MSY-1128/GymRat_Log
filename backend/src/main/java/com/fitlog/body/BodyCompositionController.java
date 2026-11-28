@@ -37,6 +37,12 @@ public class BodyCompositionController {
         return service.list(user.id(), from, to);
     }
 
+    /** 측정 1건의 정형화된 분석(결과지 묶음 + 국제 기준 판정). */
+    @GetMapping("/{id}/analysis")
+    public BodyAnalysisResponse analysis(@AuthenticationPrincipal AuthUser user, @PathVariable Long id) {
+        return service.analysis(user.id(), id);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BodyCompositionResponse create(@AuthenticationPrincipal AuthUser user,

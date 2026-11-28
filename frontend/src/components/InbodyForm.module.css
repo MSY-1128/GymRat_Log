@@ -1,0 +1,57 @@
+.group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.group legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.group legend + .hint,
+.group > p {
+  margin: 0;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.segments {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.more {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.more summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+  min-height: 32px;
+}
+
+.moreBody {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .segments {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

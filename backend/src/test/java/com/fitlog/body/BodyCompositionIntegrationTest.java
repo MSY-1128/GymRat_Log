@@ -109,7 +109,7 @@ class BodyCompositionIntegrationTest {
         send(post(URL), """
                 {"measuredOn":"2026-11-01","weightKg":40,"skeletalMuscleKg":45}
                 """).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.skeletalMuscleKg").value("골격근량은 체중보다 작아야 합니다."));
+                .andExpect(jsonPath("$.fieldErrors.skeletalMuscleKg").value("골격근량은 체중보다 작아야 해요."));
         mvc.perform(get(URL).param("from", "2026-11-30").param("to", "2026-11-01"))
                 .andExpect(status().isBadRequest());
     }

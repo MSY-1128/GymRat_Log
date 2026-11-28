@@ -2,7 +2,8 @@ import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { ApiError } from '../api/client';
 import { useMealPlan, useProfile, useSaveMeal } from '../api/hooks';
-import { MEAL_TYPES, type Goal, type PlanMeal, type PlanNutrition } from '../api/types';
+import { MEAL_TYPES, type Goal, type MealPlan as MealPlanData, type PlanMeal, type PlanNutrition } from '../api/types';
+import { formatShortDate } from '../lib/date';
 import { formatAmount, formatGram, formatKcal } from '../lib/format';
 import ui from '../styles/ui.module.css';
 import { ErrorState, Loading, errorMessage } from './QueryState';
@@ -55,6 +56,23 @@ export const REFERENCES: { text: string; url?: string }[] = [
   {
     text: 'World Health Organization. Saturated fatty acid and trans-fatty acid intake for adults and children: WHO guideline. 2023.',
     url: 'https://www.who.int/publications/i/item/9789240073630',
+  },
+  {
+    text: 'Gallagher D, et al. Healthy percentage body fat ranges: an approach for developing guidelines based on body mass index. Am J Clin Nutr. 2000;72(3):694–701. (체지방률 건강 범위)',
+    url: 'https://doi.org/10.1093/ajcn/72.3.694',
+  },
+  {
+    text: 'Kelly TL, Wilson KE, Heymsfield SB. Dual energy X-ray absorptiometry body composition reference values from NHANES. PLoS One. 2009;4(9):e7038. (체지방량지수)',
+    url: 'https://doi.org/10.1371/journal.pone.0007038',
+  },
+  {
+    text: 'Chen LK, et al. Asian Working Group for Sarcopenia: 2019 consensus update on sarcopenia diagnosis and treatment. J Am Med Dir Assoc. 2020;21(3):300–307. (사지근육지수)',
+    url: 'https://doi.org/10.1016/j.jamda.2019.12.012',
+  },
+  { text: 'WHO Western Pacific Region, IASO, IOTF. The Asia-Pacific perspective: redefining obesity and its treatment. 2000. (BMI)' },
+  {
+    text: 'World Health Organization. Waist circumference and waist–hip ratio: report of a WHO expert consultation. 2008. (복부지방률)',
+    url: 'https://www.who.int/publications/i/item/9789241501491',
   },
   { text: '보건복지부·한국영양학회. 2020 한국인 영양소 섭취기준. 2020.' },
   { text: '식품의약품안전처. 식품등의 표시기준 — 1일 영양성분 기준치(나트륨 2,000mg·당류 100g·포화지방 15g).' },
@@ -131,6 +149,7 @@ export function MealPlan({ date }: { date: string }) {
         )
       ) : (
         <div className={styles.body} aria-busy={plan.isFetching}>
+          <BodyBasis body={plan.data.body} />
           <dl className={styles.targets}>
             <div className={styles.target}>
               <dt>열량</dt>
@@ -144,7 +163,11 @@ export function MealPlan({ date }: { date: string }) {
               <dd>
                 <strong>{formatKcal(plan.data.targets.proteinG)}</strong> g
               </dd>
-              <dd className={styles.targetNote}>체중 1kg당 {formatAmount(plan.data.targets.proteinPerKg)}g</dd>
+              <dd className={styles.targetNote}>
+                {plan.data.body.leanMassKg != null
+                  ? `제지방 1kg당 ${formatAmount(Math.round((plan.data.targets.proteinG / plan.data.body.leanMassKg) * 10) / 10)}g`
+                  : `체중 1kg당 ${formatAmount(plan.data.targets.proteinPerKg)}g`}
+              </dd>
             </div>
             <div className={styles.target}>
               <dt>탄수화물</dt>
@@ -210,6 +233,38 @@ export function MealPlan({ date }: { date: string }) {
         </ol>
       </details>
     </section>
+  );
+}
+
+const BMR_SOURCE = { MEASURED: '인바디 측정', LEAN_MASS: '제지방량 공식', PROFILE: '프로필 계산' } as const;
+
+/** 식단표가 어떤 몸 기준으로 짜였는지(체성분 측정일·체지방률 판정·제지방량·기초대사량 출처). */
+function BodyBasis({ body: b }: { body: MealPlanData['body'] }) {
+  if (b.source === 'PROFILE') {
+    return (
+      <p className={ui.notice} data-testid="plan-body">
+        체성분 기록이 없어 프로필 체중 {formatAmount(b.weightKg)}kg과 공식으로 계산했어요.{' '}
+        <Link to="/body">체성분</Link>을 기록하면 제지방량 기준으로 짜요.
+      </p>
+    );
+  }
+  return (
+    <div className={styles.basis} data-testid="plan-body">
+      <strong>체성분 기준</strong> {b.measuredOn ? formatShortDate(b.measuredOn) : ''} 측정 · 체중 {formatAmount(b.weightKg)}kg
+      {b.bodyFatPct != null && (
+        <>
+          {' '}· 체지방률 {formatAmount(b.bodyFatPct)}%
+          {b.bodyFatLabel && (
+            <>
+              {' '}({b.bodyFatLabel}
+              {b.bodyFatNormalLow != null && `, 건강 범위 ${b.bodyFatNormalLow}~${b.bodyFatNormalHigh}%`})
+            </>
+          )}
+        </>
+      )}
+      {b.leanMassKg != null && <> · 제지방량 {formatAmount(b.leanMassKg)}kg</>} · 기초대사량 {formatKcal(b.bmrKcal)}kcal(
+      {BMR_SOURCE[b.bmrSource]})
+    </div>
   );
 }
 

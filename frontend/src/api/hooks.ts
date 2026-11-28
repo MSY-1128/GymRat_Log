@@ -17,6 +17,7 @@ export const keys = {
   limits: (date: string) => ['limits', date] as const,
   mealPlan: (goal: string, variant: number) => ['meal-plan', goal, variant] as const,
   body: (from: string, to: string) => ['body', from, to] as const,
+  bodyAnalysis: (id: number) => ['body-analysis', id] as const,
 };
 
 /** 로그인 사용자. 로그인하지 않았으면 data === null. */
@@ -136,17 +137,21 @@ export function useSaveProfile() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (input: ProfileInput) => api.saveProfile(input),
-    onSuccess: () => invalidate('profile', 'summary', 'stats', 'limits', 'meal-plan'),
+    onSuccess: () => invalidate('profile', 'summary', 'stats', 'limits', 'meal-plan', 'body-analysis'),
   });
 }
 
 /** 체성분이 바뀌면 프로필의 BMR·제지방량·단백질 목표도 다시 계산된다. */
+/** 측정 1건의 정형화된 분석. 프로필(성별·나이·키)이 바뀌면 다시 계산한다. */
+export const useBodyAnalysis = (id: number | null) =>
+  useQuery({ queryKey: keys.bodyAnalysis(id ?? 0), queryFn: () => api.getBodyAnalysis(id!), enabled: id != null });
+
 export function useSaveBodyComposition() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ id, input }: { id?: number; input: BodyCompositionInput }) =>
       id == null ? api.createBodyComposition(input) : api.updateBodyComposition(id, input),
-    onSuccess: () => invalidate('body', 'profile', 'limits', 'meal-plan'),
+    onSuccess: () => invalidate('body', 'body-analysis', 'profile', 'limits', 'meal-plan'),
   });
 }
 
@@ -154,7 +159,7 @@ export function useDeleteBodyComposition() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (id: number) => api.deleteBodyComposition(id),
-    onSuccess: () => invalidate('body', 'profile', 'limits', 'meal-plan'),
+    onSuccess: () => invalidate('body', 'body-analysis', 'profile', 'limits', 'meal-plan'),
   });
 }
 

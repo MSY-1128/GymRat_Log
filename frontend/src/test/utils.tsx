@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
 import type {
   BarcodeLookup,
+  BodyAnalysis,
   BodyComposition,
   BodyPart,
   DailySummary,
@@ -70,7 +71,51 @@ function metForSpeed(curve: { speedKmh: number; met: number }[], v: number): num
   return Math.round((a.met + ((b.met - a.met) * (v - a.speedKmh)) / (b.speedKmh - a.speedKmh)) * 100) / 100;
 }
 
-/** 식단표 응답 예시: 끼니마다 현미밥(1)·닭가슴살(2). variant가 홀수면 점심 양이 달라진다. */
+/** 테스트가 넣는 체성분 기록. 측정일·체중·ID 외에는 결과지에 있는 값만 넣으면 된다. */
+export type BodyFixture = Pick<BodyComposition, 'id' | 'measuredOn' | 'weightKg'> & Partial<BodyComposition>;
+
+/** 분석 응답 예시: 서버와 같은 체지방률 기준(남 20~39세 8~20%, 여 21~33%)만 판정한다. */
+export function analysisFixture(b: BodyComposition, profile: Profile | null): BodyAnalysis {
+  const sex = profile?.sexForFormula ?? null;
+  const [lo, hi, obese] = sex === 'FEMALE' ? [21, 33, 39] : [8, 20, 25];
+  const pct = b.bodyFatPct;
+  const level = sex == null || pct == null ? null : pct < lo ? 'LOW' : pct <= hi ? 'NORMAL' : pct < obese ? 'HIGH' : 'VERY_HIGH';
+  const label = { LOW: '체지방 부족', NORMAL: '건강 범위', HIGH: '과체지방', VERY_HIGH: '비만' } as const;
+  const metric = (key: string, labelText: string, unit: string, value: number) => ({
+    key, label: labelText, unit, value, sharePct: null, level: null, levelLabel: null, normalLow: null, normalHigh: null, basis: null,
+  });
+  const groups: BodyAnalysis['groups'] = [
+    { key: 'MUSCLE_FAT', title: '골격근·지방분석', items: [metric('weight', '체중', 'kg', b.weightKg)] },
+  ];
+  if (pct != null) {
+    groups.push({
+      key: 'OBESITY',
+      title: '비만분석',
+      items: [{
+        ...metric('bodyFatPct', '체지방률', '%', pct),
+        level,
+        levelLabel: level ? label[level] : null,
+        normalLow: level ? lo : null,
+        normalHigh: level ? hi : null,
+        basis: level ? 'Gallagher 외 2000 (AJCN) 나이·성별 건강 범위' : null,
+      }],
+    });
+  }
+  return {
+    id: b.id,
+    measuredOn: b.measuredOn,
+    context: {
+      sex,
+      age: profile?.age ?? null,
+      heightCm: profile?.heightCm ?? null,
+      standardWeightKg: profile ? Math.round(22 * (profile.heightCm / 100) ** 2 * 10) / 10 : null,
+      missing: sex == null ? ['프로필에 성별이 없어 체지방률·복부지방률·사지근육지수는 판정하지 않았어요.'] : [],
+    },
+    groups,
+  };
+}
+
+/** 식단표 응답 예시:끼니마다 현미밥(1)·닭가슴살(2). variant가 홀수면 점심 양이 달라진다. */
 export function planFixture(goal: Goal, variant: number): MealPlan {
   const n = (kcal: number, carbsG: number, proteinG: number, fatG: number) => ({
     kcal, carbsG, proteinG, fatG, sugarsG: 0.4, sodiumMg: 60, saturatedFatG: 1,
@@ -88,6 +133,11 @@ export function planFixture(goal: Goal, variant: number): MealPlan {
   return {
     goal,
     variant,
+    body: {
+      source: 'PROFILE', measuredOn: null, weightKg: 70, bodyFatPct: null, leanMassKg: null, skeletalMuscleKg: null,
+      bmrKcal: 1650, bmrSource: 'PROFILE', bodyFatLevel: null, bodyFatLabel: null, bodyFatNormalLow: null,
+      bodyFatNormalHigh: null,
+    },
     targets: {
       weightKg: 70, tdeeKcal: 2000, kcal: goal === 'GAIN' ? 2200 : goal === 'LOSE' ? 1600 : 2000,
       kcalRule: '유지 열량 기준', proteinG: 126, proteinPerKg: 1.8, proteinRule: '체중 1kg당 1.8g',
@@ -131,7 +181,7 @@ export function createFakeServer() {
     meals: [] as MealEntry[],
     workouts: [] as WorkoutEntry[],
     /** 체성분 기록(서버 응답 형태: 체지방량·제지방량 포함) */
-    bodies: [] as BodyComposition[],
+    bodies: [] as BodyFixture[],
     /** 줄여야 할 부분 안내(테스트가 넣는다) */
     limitAdvice: [] as LimitAdvice[],
     nextId: 100,
@@ -192,16 +242,40 @@ export function createFakeServer() {
     };
   };
 
-  const bodyView = (b: Omit<BodyComposition, 'fatMassKg' | 'leanMassKg'>): BodyComposition => ({
-    ...b,
-    fatMassKg: b.bodyFatPct == null ? null : (b.weightKg * b.bodyFatPct) / 100,
-    leanMassKg: b.bodyFatPct == null ? null : (b.weightKg * (100 - b.bodyFatPct)) / 100,
-  });
+  /** 서버처럼 정형화: 체지방률·체지방량 중 하나로 나머지를 채우고 빠진 항목은 null. */
+  const bodyView = (b: BodyFixture & { bodyFatMassKg?: number | null }): BodyComposition => {
+    const { bodyFatMassKg, ...rest } = b;
+    const w = b.weightKg;
+    const r1 = (n: number) => Math.round(n * 10) / 10;
+    const fat = b.fatMassKg ?? bodyFatMassKg ?? (b.bodyFatPct == null ? null : r1((w * b.bodyFatPct) / 100));
+    const pct = b.bodyFatPct ?? (fat == null ? null : r1((fat / w) * 100));
+    const none = { rightArm: null, leftArm: null, trunk: null, rightLeg: null, leftLeg: null };
+    const lean = b.segmentalLean ?? none;
+    const limbs = [lean.rightArm, lean.leftArm, lean.rightLeg, lean.leftLeg];
+    return {
+      bodyWaterL: null,
+      proteinKg: null,
+      mineralKg: null,
+      skeletalMuscleKg: null,
+      measuredBmrKcal: null,
+      visceralFatLevel: null,
+      ecwRatio: null,
+      waistHipRatio: null,
+      inbodyScore: null,
+      ...rest,
+      bodyFatPct: pct,
+      fatMassKg: fat,
+      leanMassKg: fat == null ? null : r1(w - fat),
+      segmentalLean: lean,
+      segmentalFat: b.segmentalFat ?? none,
+      appendicularLeanKg: limbs.every((v) => v != null) ? r1(limbs.reduce((a, v) => a! + v!, 0)!) : null,
+    };
+  };
 
   /** 서버와 같은 규칙으로 BMR 방식·제지방량·단백질 목표를 붙인다(키·몸무게 공식 값은 생략). */
   const profileView = (): Profile => {
     const p = state.profile!;
-    const byDateDesc = [...state.bodies].sort((a, b) => b.measuredOn.localeCompare(a.measuredOn));
+    const byDateDesc = state.bodies.map(bodyView).sort((a, b) => b.measuredOn.localeCompare(a.measuredOn));
     const fat = byDateDesc.find((b) => b.leanMassKg != null) ?? null;
     const measured = byDateDesc.find((b) => b.measuredBmrKcal != null) ?? null;
     const lean = fat?.leanMassKg ?? null;
@@ -430,9 +504,16 @@ export function createFakeServer() {
       const from = url.searchParams.get('from') ?? '';
       const to = url.searchParams.get('to') ?? '';
       const items = state.bodies
+        .map(bodyView)
         .filter((b) => b.measuredOn >= from && b.measuredOn <= to)
         .sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
       return json(200, items);
+    }
+    const analysisId = /^\/body-compositions\/(\d+)\/analysis$/.exec(path);
+    if (method === 'GET' && analysisId) {
+      const fixture = state.bodies.find((x) => x.id === Number(analysisId[1]));
+      if (!fixture) return json(404, { code: 'NOT_FOUND', message: '체성분 기록을(를) 찾을 수 없습니다.', fieldErrors: {} });
+      return json(200, analysisFixture(bodyView(fixture), state.profile));
     }
     const bodyId = /^\/body-compositions\/(\d+)$/.exec(path);
     if ((method === 'POST' && path === '/body-compositions') || (method === 'PUT' && bodyId)) {

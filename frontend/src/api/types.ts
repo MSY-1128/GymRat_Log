@@ -428,6 +428,21 @@ export interface PlanMeal {
 export interface MealPlan {
   goal: Goal;
   variant: number;
+  /** 식단표의 몸 기준(가장 최근 체성분, 없으면 프로필) */
+  body: {
+    source: 'BODY_COMPOSITION' | 'PROFILE';
+    measuredOn: string | null;
+    weightKg: number;
+    bodyFatPct: number | null;
+    leanMassKg: number | null;
+    skeletalMuscleKg: number | null;
+    bmrKcal: number;
+    bmrSource: 'MEASURED' | 'LEAN_MASS' | 'PROFILE';
+    bodyFatLevel: BodyLevel | null;
+    bodyFatLabel: string | null;
+    bodyFatNormalLow: number | null;
+    bodyFatNormalHigh: number | null;
+  };
   targets: {
     weightKg: number;
     tdeeKcal: number;
@@ -463,25 +478,91 @@ export const mealTypeLabel = (t: MealType): string =>
   MEAL_TYPES.find((m) => m.value === t)?.label ?? t;
 
 /** 체성분 측정 기록(인바디 결과지를 직접 입력). 체지방량·제지방량은 서버 계산값. */
+export interface SegmentValues {
+  rightArm: number | null;
+  leftArm: number | null;
+  trunk: number | null;
+  rightLeg: number | null;
+  leftLeg: number | null;
+}
+
+export const SEGMENTS: { key: keyof SegmentValues; label: string }[] = [
+  { key: 'rightArm', label: '오른팔' },
+  { key: 'leftArm', label: '왼팔' },
+  { key: 'trunk', label: '몸통' },
+  { key: 'rightLeg', label: '오른다리' },
+  { key: 'leftLeg', label: '왼다리' },
+];
+
+/** 정형화된 측정 기록(인바디 결과지). 체지방률·체지방량은 하나만 넣어도 서버가 둘 다 채운다. */
 export interface BodyComposition {
   id: number;
   measuredOn: string;
   weightKg: number;
-  bodyFatPct: number | null;
+  bodyWaterL: number | null;
+  proteinKg: number | null;
+  mineralKg: number | null;
+  fatMassKg: number | null;
   skeletalMuscleKg: number | null;
+  bodyFatPct: number | null;
+  leanMassKg: number | null;
+  segmentalLean: SegmentValues;
+  segmentalFat: SegmentValues;
+  /** 팔·다리 근육량 합(네 부위가 다 있을 때) */
+  appendicularLeanKg: number | null;
   measuredBmrKcal: number | null;
   visceralFatLevel: number | null;
-  fatMassKg: number | null;
-  leanMassKg: number | null;
+  ecwRatio: number | null;
+  waistHipRatio: number | null;
+  inbodyScore: number | null;
 }
 
 export interface BodyCompositionInput {
   measuredOn: string;
   weightKg: number;
-  bodyFatPct: number | null;
+  bodyWaterL?: number | null;
+  proteinKg?: number | null;
+  mineralKg?: number | null;
+  bodyFatMassKg?: number | null;
   skeletalMuscleKg: number | null;
+  bodyFatPct: number | null;
+  segmentalLean?: SegmentValues;
+  segmentalFat?: SegmentValues;
   measuredBmrKcal: number | null;
   visceralFatLevel: number | null;
+  ecwRatio?: number | null;
+  waistHipRatio?: number | null;
+  inbodyScore?: number | null;
+}
+
+export type BodyLevel = 'LOW' | 'NORMAL' | 'HIGH' | 'VERY_HIGH';
+
+export interface BodyMetric {
+  key: string;
+  label: string;
+  unit: string;
+  value: number;
+  /** 체중에서 차지하는 비율(%) */
+  sharePct: number | null;
+  level: BodyLevel | null;
+  levelLabel: string | null;
+  normalLow: number | null;
+  normalHigh: number | null;
+  /** 판정 기준 출처 */
+  basis: string | null;
+}
+
+export interface BodyAnalysis {
+  id: number;
+  measuredOn: string;
+  context: {
+    sex: SexForFormula | null;
+    age: number | null;
+    heightCm: number | null;
+    standardWeightKg: number | null;
+    missing: string[];
+  };
+  groups: { key: string; title: string; items: BodyMetric[] }[];
 }
 
 export const BMR_METHODS: { value: BmrMethod; label: string; short: string }[] = [

@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  BodyAnalysis,
   BodyComposition,
   BodyCompositionInput,
   Credentials,
@@ -168,4 +169,5 @@ export const api = {
   updateBodyComposition: (id: number, input: BodyCompositionInput) =>
     request<BodyComposition>(`/body-compositions/${id}`, json('PUT', input)),
   deleteBodyComposition: (id: number) => request<null>(`/body-compositions/${id}`, { method: 'DELETE' }),
+  getBodyAnalysis: (id: number) => request<BodyAnalysis>(`/body-compositions/${id}/analysis`),
 };

@@ -41,7 +41,7 @@ public record ProfileResponse(
      */
     public static ProfileResponse from(Profile p, BodyComposition latestBodyFat, BodyComposition latestBmr) {
         BigDecimal lean = latestBodyFat == null ? null
-                : Calculator.leanMass(latestBodyFat.getWeightKg(), latestBodyFat.getBodyFatPct());
+                : latestBodyFat.getLeanMassKg();
 
         BmrMethod applied = BmrMethod.FORMULA;
         LocalDate basis = null;

@@ -137,6 +137,7 @@ describe('식단표', () => {
     const goals = within(plan).getByRole('group', { name: '목표' });
     expect(await within(plan).findByText('1,600')).toBeInTheDocument();
     expect(within(goals).getByRole('radio', { name: /체지방 감량/ })).toBeChecked();
+    expect(within(plan).getByTestId('plan-body')).toHaveTextContent('체성분 기록이 없어 프로필 체중 70kg');
     expect(state.calls.some((c) => c.path === '/nutrition/meal-plan')).toBe(true);
 
     await user.click(within(goals).getByRole('radio', { name: /근육량 증가/ }));

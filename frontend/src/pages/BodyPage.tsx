@@ -1,16 +1,14 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ApiError } from '../api/client';
 import {
   useBodyCompositions,
   useDeleteBodyComposition,
   useProfile,
-  useSaveBodyComposition,
   useSaveProfile,
 } from '../api/hooks';
-import type { BodyComposition, BodyCompositionInput, Profile } from '../api/types';
-import { Field } from '../components/Field';
+import type { BodyComposition, Profile } from '../api/types';
+import { BodyAnalysisCard } from '../components/BodyAnalysisCard';
+import { InbodyForm } from '../components/InbodyForm';
 import { Empty, ErrorState, Loading, errorMessage } from '../components/QueryState';
 import { addDays, formatShortDate, todayString } from '../lib/date';
 import { formatAmount, formatGram } from '../lib/format';
@@ -33,12 +31,15 @@ export function BodyPage() {
   const profile = useProfile();
   const del = useDeleteBodyComposition();
   const [editing, setEditing] = useState<BodyComposition | null>(null);
+  /** 분석해서 보여 줄 측정(기본은 가장 최근) */
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [status, setStatus] = useState('');
   /** 저장 후 입력 칸을 비우기 위해 폼을 새로 만든다 */
   const [formRound, setFormRound] = useState(0);
 
   const entries = list.data ?? [];
   const latest = entries.at(-1) ?? null;
+  const analysisId = selectedId != null && entries.some((b) => b.id === selectedId) ? selectedId : (latest?.id ?? null);
 
   const remove = (b: BodyComposition) => {
     if (!window.confirm(`${formatShortDate(b.measuredOn)} 체성분 기록을 삭제할까요?`)) return;
@@ -56,7 +57,7 @@ export function BodyPage() {
       <div className={ui.pageHeader}>
         <div>
           <h1 className={ui.title}>체성분</h1>
-          <p className={ui.subtitle}>인바디 결과지를 보고 입력하세요. 체중만 필수이고 나머지는 있는 값만 넣으면 돼요.</p>
+          <p className={ui.subtitle}>인바디 결과지 순서대로 입력하세요. 체중만 필수이고, 값을 정리해 국제 기준으로 판정해 드려요.</p>
         </div>
         <div className={styles.ranges} role="radiogroup" aria-label="기간">
           {RANGES.map((r) => (
@@ -73,7 +74,7 @@ export function BodyPage() {
           <h2 id="body-form-title" className={ui.cardTitle}>
             {editing ? '체성분 수정' : '체성분 기록'}
           </h2>
-          <BodyForm
+          <InbodyForm
             key={editing?.id ?? `new-${formRound}`}
             editing={editing}
             onDone={(msg) => {
@@ -102,6 +103,8 @@ export function BodyPage() {
           )}
         </section>
       </div>
+
+      <BodyAnalysisCard id={analysisId} />
 
       {entries.length > 0 && (
         <section className={ui.card} aria-labelledby="body-chart-title">
@@ -161,6 +164,15 @@ export function BodyPage() {
                         <button
                           type="button"
                           className={`${ui.secondary} ${ui.small}`}
+                          onClick={() => setSelectedId(b.id)}
+                          aria-pressed={analysisId === b.id}
+                          aria-label={`${formatShortDate(b.measuredOn)} 결과지 분석 보기`}
+                        >
+                          분석
+                        </button>
+                        <button
+                          type="button"
+                          className={`${ui.secondary} ${ui.small}`}
                           onClick={() => setEditing(b)}
                           aria-label={`${formatShortDate(b.measuredOn)} 기록 수정`}
                         >
@@ -185,103 +197,6 @@ export function BodyPage() {
         )}
       </section>
     </div>
-  );
-}
-
-const str = (n: number | null | undefined) => (n == null ? '' : String(n));
-
-function BodyForm({
-  editing,
-  onDone,
-  onCancel,
-}: {
-  editing: BodyComposition | null;
-  onDone: (message: string) => void;
-  onCancel: () => void;
-}) {
-  const save = useSaveBodyComposition();
-  const [date, setDate] = useState(editing?.measuredOn ?? todayString());
-  const [weight, setWeight] = useState(str(editing?.weightKg));
-  const [fat, setFat] = useState(str(editing?.bodyFatPct));
-  const [muscle, setMuscle] = useState(str(editing?.skeletalMuscleKg));
-  const [bmr, setBmr] = useState(str(editing?.measuredBmrKcal));
-  const [visceral, setVisceral] = useState(str(editing?.visceralFatLevel));
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    const errs: Record<string, string> = {};
-    const num = (s: string) => (s.trim() === '' ? null : Number(s));
-    const w = num(weight);
-    const f = num(fat);
-    const m = num(muscle);
-    const b = num(bmr);
-    const v = num(visceral);
-    if (!date) errs.measuredOn = '측정일을 입력해 주세요.';
-    if (w == null || !(w >= 30 && w <= 350)) errs.weightKg = '30~350kg 사이로 입력해 주세요.';
-    if (f != null && !(f >= 3 && f <= 70)) errs.bodyFatPct = '3~70% 사이로 입력하거나 비워 두세요.';
-    if (m != null && !(m >= 5 && m <= 100)) errs.skeletalMuscleKg = '5~100kg 사이로 입력하거나 비워 두세요.';
-    else if (m != null && w != null && m >= w) errs.skeletalMuscleKg = '골격근량은 체중보다 작아야 해요.';
-    if (b != null && !(Number.isInteger(b) && b >= 500 && b <= 5000))
-      errs.measuredBmrKcal = '500~5000 사이 정수로 입력하거나 비워 두세요.';
-    if (v != null && !(Number.isInteger(v) && v >= 1 && v <= 30))
-      errs.visceralFatLevel = '1~30 사이 정수로 입력하거나 비워 두세요.';
-    setErrors(errs);
-    if (Object.keys(errs).length || w == null) return;
-
-    const r1 = (n: number | null) => (n == null ? null : Math.round(n * 10) / 10);
-    const input: BodyCompositionInput = {
-      measuredOn: date,
-      weightKg: r1(w)!,
-      bodyFatPct: r1(f),
-      skeletalMuscleKg: r1(m),
-      measuredBmrKcal: b,
-      visceralFatLevel: v,
-    };
-    save.mutate(
-      { id: editing?.id, input },
-      {
-        onSuccess: () => onDone(editing ? '체성분 기록을 수정했어요.' : '체성분을 기록했어요.'),
-        onError: (err) => {
-          if (err instanceof ApiError) setErrors(err.fieldErrors);
-        },
-      },
-    );
-  };
-
-  const showFormError =
-    save.isError && !(save.error instanceof ApiError && Object.keys(save.error.fieldErrors).length);
-
-  return (
-    <form className={ui.form} onSubmit={submit} noValidate aria-label={editing ? '체성분 수정' : '체성분 기록'}>
-      <div className={ui.row}>
-        <Field label="측정일" type="date" max={todayString()} value={date} onChange={(e) => setDate(e.target.value)} error={errors.measuredOn} required />
-        <Field label="체중 (kg)" type="number" inputMode="decimal" min={30} max={350} step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} error={errors.weightKg} required />
-        <Field label="체지방률 (%)" type="number" inputMode="decimal" min={3} max={70} step="0.1" value={fat} onChange={(e) => setFat(e.target.value)} error={errors.bodyFatPct} placeholder="선택" />
-        <Field label="골격근량 (kg)" type="number" inputMode="decimal" min={5} max={100} step="0.1" value={muscle} onChange={(e) => setMuscle(e.target.value)} error={errors.skeletalMuscleKg} placeholder="선택" />
-        <Field label="기초대사량 (kcal)" type="number" inputMode="numeric" min={500} max={5000} value={bmr} onChange={(e) => setBmr(e.target.value)} error={errors.measuredBmrKcal} placeholder="선택" />
-        <Field label="내장지방 레벨" type="number" inputMode="numeric" min={1} max={30} value={visceral} onChange={(e) => setVisceral(e.target.value)} error={errors.visceralFatLevel} placeholder="선택" />
-      </div>
-      {showFormError && (
-        <p className={ui.formError} role="alert">
-          {errorMessage(save.error)}
-        </p>
-      )}
-      <div className={ui.actions}>
-        <button type="submit" className={ui.button} disabled={save.isPending}>
-          {save.isPending ? '저장 중…' : editing ? '수정 저장' : '기록하기'}
-        </button>
-        {editing && (
-          <button type="button" className={ui.secondary} onClick={onCancel}>
-            취소
-          </button>
-        )}
-      </div>
-      <p className={ui.hint}>
-        같은 날은 한 번만 기록돼요. 체지방률을 넣으면 체지방량·제지방량을 계산하고, <Link to="/settings">설정</Link>에서
-        기초대사량 계산 방식을 바꿀 수 있어요.
-      </p>
-    </form>
   );
 }
 

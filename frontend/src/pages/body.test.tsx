@@ -58,13 +58,14 @@ describe('체성분', () => {
     await user.click(within(form).getByRole('button', { name: '기록하기' }));
 
     await waitFor(() =>
-      expect(state.calls.find((c) => c.method === 'POST' && c.path === '/body-compositions')?.body).toEqual({
+      expect(state.calls.find((c) => c.method === 'POST' && c.path === '/body-compositions')?.body).toMatchObject({
         measuredOn: TODAY,
         weightKg: 80,
         bodyFatPct: 12,
         skeletalMuscleKg: 38.5,
+        bodyFatMassKg: null,
         measuredBmrKcal: null,
-        visceralFatLevel: null,
+        segmentalLean: { rightArm: null, trunk: null },
       }),
     );
     expect(await screen.findByText('체성분을 기록했어요.')).toBeInTheDocument();
@@ -169,5 +170,82 @@ describe('체성분', () => {
     state.profile = baseProfile({ bmrMethod: 'MEASURED' });
     renderWithProviders(<App />, '/settings');
     expect(await screen.findByTestId('bmr-fallback')).toHaveTextContent('인바디 측정값에 필요한 값이 아직 없어');
+  });
+});
+
+describe('인바디 결과지 입력과 분석', () => {
+  it('enters the sheet in its order, sends segment values and shows the judged analysis', async () => {
+    const { state } = createFakeServer();
+    state.profile = baseProfile({ heightCm: 175 });
+    const user = userEvent.setup();
+    renderWithProviders(<App />, '/body');
+
+    const form = await screen.findByRole('form', { name: '체성분 기록' });
+    expect(within(form).getByRole('group', { name: '체성분분석' })).toBeInTheDocument();
+    await user.type(within(form).getByLabelText('체중 (kg)'), '75');
+    const composition = within(form).getByRole('group', { name: '체성분분석' });
+    await user.type(within(composition).getByLabelText('체수분 (L)'), '44');
+    await user.type(within(composition).getByLabelText('체지방량 (kg)'), '15');
+    await user.click(within(form).getByText('부위별 분석 입력 (결과지에 있으면)'));
+    const lean = within(form).getByRole('group', { name: '부위별 근육분석 (kg)' });
+    await user.type(within(lean).getByLabelText('몸통'), '27');
+    await user.type(within(lean).getByLabelText('오른팔'), '3.456');
+    await user.type(within(within(form).getByRole('group', { name: '연구항목' })).getByLabelText('세포외수분비'), '0.381');
+    await user.click(within(form).getByRole('button', { name: '기록하기' }));
+
+    await waitFor(() =>
+      expect(state.calls.find((c) => c.method === 'POST' && c.path === '/body-compositions')?.body).toMatchObject({
+        weightKg: 75,
+        bodyWaterL: 44,
+        bodyFatMassKg: 15,
+        bodyFatPct: null,
+        // 소수 자릿수를 결과지 기준으로 맞춰 보낸다
+        segmentalLean: { trunk: 27, rightArm: 3.46, leftArm: null },
+        ecwRatio: 0.381,
+      }),
+    );
+
+    // 체지방량으로 계산한 체지방률 20% → 남 30세 건강 범위 8~20%
+    const card = await screen.findByRole('region', { name: /결과지 분석/ });
+    const fatPct = await within(card).findByTestId('metric-bodyFatPct');
+    expect(fatPct).toHaveTextContent('20%');
+    expect(fatPct).toHaveTextContent('건강 범위');
+    expect(within(fatPct).getByRole('img')).toHaveAccessibleName('체지방률 20%, 정상 8~20, 건강 범위');
+    expect(within(fatPct).getByText('Gallagher 외 2000 (AJCN) 나이·성별 건강 범위')).toBeInTheDocument();
+  });
+
+  it('shows server consistency errors next to the sheet group', async () => {
+    const { state } = createFakeServer();
+    state.failures.set('POST /body-compositions', {
+      count: 1,
+      status: 400,
+      body: {
+        code: 'VALIDATION_ERROR',
+        message: '입력값을 확인해 주세요.',
+        fieldErrors: {
+          bodyFatMassKg: '체지방량과 체지방률이 맞지 않아요. 체중 × 체지방률 = 15.0kg이에요.',
+          segmentalFat: '부위별 체지방량 합계(30kg)가 체지방량보다 커요.',
+        },
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<App />, '/body');
+    const form = await screen.findByRole('form', { name: '체성분 기록' });
+    await user.type(within(form).getByLabelText('체중 (kg)'), '75');
+    await user.type(within(form).getByLabelText('체지방률 (%)'), '20');
+    await user.type(within(form).getByLabelText('체지방량 (kg)'), '12');
+    await user.click(within(form).getByRole('button', { name: '기록하기' }));
+
+    expect(await within(form).findByText(/체중 × 체지방률 = 15.0kg/)).toBeInTheDocument();
+    expect(within(form).getByText('부위별 체지방량 합계(30kg)가 체지방량보다 커요.')).toBeInTheDocument();
+  });
+
+  it('asks for sex in the profile when it cannot judge', async () => {
+    const { state } = createFakeServer();
+    state.bodies.push({ id: 1, measuredOn: TODAY, weightKg: 70, bodyFatPct: 18 });
+    renderWithProviders(<App />, '/body');
+    const card = await screen.findByRole('region', { name: /결과지 분석/ });
+    expect(await within(card).findByText(/성별이 없어/)).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: '설정' })).toHaveAttribute('href', '/settings');
   });
 });

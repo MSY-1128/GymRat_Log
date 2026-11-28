@@ -253,3 +253,13 @@
     display: none;
   }
 }
+
+.basis {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  font-size: 13.5px;
+  color: var(--text);
+}

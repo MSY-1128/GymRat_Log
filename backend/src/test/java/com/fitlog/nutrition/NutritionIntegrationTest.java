@@ -244,6 +244,48 @@ class NutritionIntegrationTest {
     }
 
     @Test
+    void mealPlanUsesLatestBodyCompositionAndInternationalBodyFatRanges() throws Exception {
+        seedPlanFoods();
+        send(put("/api/v1/profile"), PROFILE.formatted("")).andExpect(status().isOk());
+        // 체지방률 25% → 남 20~39세 비만(25% 이상, Gallagher 2000). 제지방량 60kg
+        send(post("/api/v1/body-compositions"), """
+                {"measuredOn":"2026-11-10","weightKg":80,"bodyFatPct":25}
+                """).andExpect(status().isCreated());
+
+        // 기초대사량 = 370 + 21.6 × 60 = 1,666 → 유지 1,666 × 1.2 = 1,999
+        mvc.perform(get("/api/v1/nutrition/meal-plan").param("goal", "GAIN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body.source").value("BODY_COMPOSITION"))
+                .andExpect(jsonPath("$.body.measuredOn").value("2026-11-10"))
+                .andExpect(jsonPath("$.body.leanMassKg").value(60.0))
+                .andExpect(jsonPath("$.body.bmrSource").value("LEAN_MASS"))
+                .andExpect(jsonPath("$.body.bmrKcal").value(1666))
+                .andExpect(jsonPath("$.body.bodyFatLevel").value("VERY_HIGH"))
+                .andExpect(jsonPath("$.targets.weightKg").value(80.0))
+                .andExpect(jsonPath("$.targets.tdeeKcal").value(1999))
+                .andExpect(jsonPath("$.targets.kcal").value(2099))      // 체지방이 많아 +5%
+                .andExpect(jsonPath("$.targets.proteinG").value(126));  // 제지방 60 × 2.1
+
+        // 인바디 측정 기초대사량이 있으면 그 값을 쓴다. 감량: 1,700 × 1.2 × 0.8 = 1,632 < 1,700 → 1,700
+        send(post("/api/v1/body-compositions"), """
+                {"measuredOn":"2026-11-17","weightKg":80,"bodyFatMassKg":20,"measuredBmrKcal":1700}
+                """).andExpect(status().isCreated());
+        mvc.perform(get("/api/v1/nutrition/meal-plan").param("goal", "LOSE"))
+                .andExpect(jsonPath("$.body.measuredOn").value("2026-11-17"))
+                .andExpect(jsonPath("$.body.bmrSource").value("MEASURED"))
+                .andExpect(jsonPath("$.targets.kcal").value(1700))
+                .andExpect(jsonPath("$.targets.proteinG").value(156));  // 제지방 60 × 2.6
+
+        // 체지방률이 건강 범위면 감량을 15%로 천천히
+        send(post("/api/v1/body-compositions"), """
+                {"measuredOn":"2026-11-24","weightKg":80,"bodyFatPct":15,"measuredBmrKcal":1900}
+                """).andExpect(status().isCreated());
+        mvc.perform(get("/api/v1/nutrition/meal-plan").param("goal", "LOSE"))
+                .andExpect(jsonPath("$.body.bodyFatLevel").value("NORMAL"))
+                .andExpect(jsonPath("$.targets.kcal").value(1938));     // 1,900 × 1.2 × 0.85
+    }
+
+    @Test
     void mealPlanNeedsProfileAndValidParameters() throws Exception {
         mvc.perform(get("/api/v1/nutrition/meal-plan"))
                 .andExpect(status().isConflict())
